@@ -161,10 +161,11 @@ def simulate_hawkes_queue(
         if total_rate <= 0:
             break
 
-        # Upper bound for thinning (λ⁻ can only decrease between events
-        # if H > 0, so current value is the max; but H could be negative
-        # and λ⁻ could increase... we use a safe upper bound)
-        lam_max = lam_plus_current + max(lam_minus_current, mu_minus + abs(H))
+        # Upper bound for thinning:
+        # If H > 0, λ⁻ = μ⁻ + H decays → current value is max.
+        # If H < 0, λ⁻ increases toward μ⁻ → μ⁻ is the max.
+        lam_minus_max = mu_minus + max(H, 0)
+        lam_max = lam_plus_current + lam_minus_max + 0.01
 
         # Draw candidate inter-event time
         dt = rng.exponential(1.0 / lam_max)
@@ -277,8 +278,15 @@ def simulate_coupled_hawkes(
         # Current intensities
         lm1 = max(0.0, mu_minus + H1)
         lmn1 = max(0.0, mu_minus + Hn1)
-        total = 2 * mu_plus + lm1 + lmn1
-        lam_max = total * 1.5 + 1.0  # safe upper bound
+
+        # Upper bound: if H > 0, it will decay → current is max.
+        # If H < 0, it will decay toward 0 → μ⁻ is the max.
+        lm1_max = mu_minus + max(H1, 0)
+        lmn1_max = mu_minus + max(Hn1, 0)
+        lam_max = 2 * mu_plus + lm1_max + lmn1_max + 0.01
+
+        if lam_max <= 0:
+            break
 
         dt = rng.exponential(1.0 / lam_max)
         t += dt
