@@ -332,7 +332,7 @@ def four_model_comparison(
 
     Expected ordering: E[T_coupled] < E[T_single_H] < E[T_two_P] < E[T_single_P]
     """
-    from model.hawkes import simulate_hawkes_queue, simulate_coupled_hawkes
+    from model.Hawkes import simulate_hawkes_queue, simulate_coupled_hawkes
     from model.hitting_times import simulate_until_hit_zero
 
     rng = np.random.default_rng(seed)
