@@ -72,7 +72,7 @@ def simulate_until_hit_zero(
     p_q1_add = lambda_plus / total_rate
     p_q1_rem = lambda_minus / total_rate
     p_qn1_add = lambda_plus / total_rate
-    # p_qn1_rem = lambda_minus / total_rate, implicite par complément.
+    # p_qn1_rem = lambda_minus / total_rate, implicite en fait.
 
     cumprobs = np.array([p_q1_add, p_q1_add + p_q1_rem,
                          p_q1_add + p_q1_rem + p_qn1_add])
