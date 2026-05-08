@@ -114,9 +114,10 @@ def hawkes_stationary_intensity(mu_plus: float, mu_minus: float,
     ratio = alpha / beta
     if ratio >= 1:
         raise ValueError(f"α/β = {ratio:.3f} ≥ 1: process is non-stationary!")
-    if convention == "v4":
-        return (mu_minus - ratio * mu_plus) / (1 - ratio)
-    return (mu_minus + ratio * mu_plus) / (1 + ratio)
+    # if convention == "v4":
+    #     return (mu_minus - ratio * mu_plus) / (1 - ratio)
+    return (mu_minus - ratio * mu_plus) / (1 - ratio)
+
 
 
 # ====================================================================== #
