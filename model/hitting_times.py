@@ -1,26 +1,22 @@
 """
-First Passage Time Analysis for Independent Birth-Death Queues.
+Analyse des temps d'atteinte pour deux files birth-death indépendantes.
 
-Specialized simulation and analytics for Questions 1.2.3 of the MODAL project:
-    - Simulate two independent queues until one hits zero
-    - Brownian motion approximation
-    - Hitting time distributions (simulated vs theoretical)
-    - Mean hitting time as function of initial conditions
-    - Probability that Q_1 hits zero before Q_{-1}
+Ce module regroupe les outils utilisés dans la question 1.2.3 du projet MODAL :
+    - simulation de deux files indépendantes jusqu'à ce que l'une atteigne 0 ;
+    - approximation brownienne ;
+    - densité et fonction de répartition du temps d'atteinte brownien ;
+    - estimation Monte Carlo de \\mathbb{E}[T_min] et d'intervalles de confiance ;
+    - probabilité que Q_1 atteigne 0 avant Q_{-1}.
 
-Mathematical background:
-    Q_i(t) is a birth-death process: +1 at rate λ⁺, -1 at rate λ⁻.
-    
-    Diffusion approximation (CLT):
+Rappel mathématique :
+    Q_i(t) est un processus birth-death : +1 au taux λ⁺, -1 au taux λ⁻.
+
+    Approximation par diffusion (TCL fonctionnel) :
         Q_i(t) ≈ Q_i(0) + μt + σW(t)
-    where μ = λ⁺ - λ⁻ (drift), σ² = λ⁺ + λ⁻ (variance rate).
-    
-    First hitting time of 0 for BM(μ, σ²) starting at x > 0:
-        T₀ ~ Inverse Gaussian(μ_IG, λ_IG)
-        with μ_IG = x/|μ|, λ_IG = x²/σ²
-    
-    PDF: f(t) = (x / (σ√(2πt³))) exp(-(x + μt)² / (2σ²t))
-    Mean: E[T₀] = x / |μ|  (when μ < 0)
+    avec μ = λ⁺ - λ⁻ et σ² = λ⁺ + λ⁻.
+
+    Si μ < 0, le temps d'atteinte de 0 du brownien partant de x > 0 suit
+    une loi inverse gaussienne.
 """
 
 import numpy as np
@@ -30,14 +26,14 @@ from typing import Optional
 
 @dataclass
 class HittingTimeResult:
-    """Result of one simulation run (two queues until one hits zero)."""
-    hitting_time: float          # time when first queue hits 0
-    which_hit: int               # +1 if Q_1 hit first, -1 if Q_{-1} hit first
-    q1_path: np.ndarray          # trajectory of Q_1
-    q_neg1_path: np.ndarray      # trajectory of Q_{-1}
-    times: np.ndarray            # time points
-    q1_final: int                # Q_1 at stopping time
-    q_neg1_final: int            # Q_{-1} at stopping time
+    """Résultat d'une simulation de deux files jusqu'à la première atteinte de 0."""
+    hitting_time: float          # temps où la première file atteint 0
+    which_hit: int               # +1 si Q_1 atteint 0 en premier, -1 pour Q_{-1}
+    q1_path: np.ndarray          # trajectoire de Q_1
+    q_neg1_path: np.ndarray      # trajectoire de Q_{-1}
+    times: np.ndarray            # instants enregistrés
+    q1_final: int                # valeur finale de Q_1
+    q_neg1_final: int            # valeur finale de Q_{-1}
 
 
 def simulate_until_hit_zero(
@@ -50,27 +46,14 @@ def simulate_until_hit_zero(
     record_path: bool = True,
 ) -> HittingTimeResult:
     """
-    Simulate two independent birth-death queues until one hits zero.
-    
-    Each queue independently:
-        +1 at rate λ⁺ (Poisson process of additions)
-        -1 at rate λ⁻ (Poisson process of removals)
-    
-    The two queues are INDEPENDENT (Hypothèse: premières limites indépendantes).
-    We stop when min(Q_1, Q_{-1}) = 0.
-    
-    Parameters
-    ----------
-    q1_init, q_neg1_init : int
-        Initial queue sizes.
-    lambda_plus, lambda_minus : float
-        Intensities (per ms in the MODAL specification).
-    record_path : bool
-        If True, record full trajectory (for plotting).
-    
-    Returns
-    -------
-    HittingTimeResult
+    Simule deux files birth-death indépendantes jusqu'à ce que l'une atteigne 0.
+
+    Pour chaque file :
+        +1 au taux λ⁺, ce qui représente un ajout dans la file ;
+        -1 au taux λ⁻, ce qui représente un retrait.
+
+    Les deux files sont indépendantes. Le critère d'arrêt est
+    min(Q_1, Q_{-1}) = 0.
     """
     if rng is None:
         rng = np.random.default_rng()
@@ -79,20 +62,17 @@ def simulate_until_hit_zero(
     q_neg1 = q_neg1_init
     t = 0.0
 
-    # Total rate for the system: each queue has λ⁺ + λ⁻, two queues
+    # Taux total du système : chaque file a le taux λ⁺ + λ⁻.
     rate_per_queue = lambda_plus + lambda_minus
     total_rate = 2 * rate_per_queue
 
-    # Probability of each event type
-    # 4 independent Poisson processes:
-    #   Q_1 add:    λ⁺ / total_rate
-    #   Q_1 remove: λ⁻ / total_rate
-    #   Q_{-1} add:    λ⁺ / total_rate
-    #   Q_{-1} remove: λ⁻ / total_rate
+    # Probabilités des quatre types d'événements :
+    #   ajout dans Q_1, retrait dans Q_1,
+    #   ajout dans Q_{-1}, retrait dans Q_{-1}.
     p_q1_add = lambda_plus / total_rate
     p_q1_rem = lambda_minus / total_rate
     p_qn1_add = lambda_plus / total_rate
-    # p_qn1_rem = lambda_minus / total_rate  (implicit: 1 - sum of others)
+    # p_qn1_rem = lambda_minus / total_rate, implicite par complément.
 
     cumprobs = np.array([p_q1_add, p_q1_add + p_q1_rem,
                          p_q1_add + p_q1_rem + p_qn1_add])
@@ -103,11 +83,11 @@ def simulate_until_hit_zero(
         qn1_list = [q_neg1]
 
     for _ in range(max_events):
-        # Draw inter-event time
+        # Temps d'attente jusqu'au prochain événement.
         dt = rng.exponential(1.0 / total_rate)
         t += dt
 
-        # Choose event
+        # Choix du type d'événement.
         u = rng.random()
         if u < cumprobs[0]:
             q1 += 1                  # Q_1 add
@@ -123,7 +103,7 @@ def simulate_until_hit_zero(
             q1_list.append(q1)
             qn1_list.append(q_neg1)
 
-        # Check stopping condition
+        # Condition d'arrêt : l'une des deux files est vide.
         if q1 <= 0 or q_neg1 <= 0:
             which = 1 if q1 <= 0 else -1
             if record_path:
@@ -141,7 +121,7 @@ def simulate_until_hit_zero(
                     q1_final=q1, q_neg1_final=q_neg1,
                 )
 
-    # If we hit max_events without reaching 0 (shouldn't happen with μ < 0)
+    # Cas de secours si max_events est atteint avant 0.
     which = 1 if q1 <= q_neg1 else -1
     if record_path:
         return HittingTimeResult(
@@ -160,10 +140,10 @@ def simulate_brownian_until_hit_zero(
     max_steps: int = 1_000_000,
 ) -> tuple[float, np.ndarray, np.ndarray]:
     """
-    Simulate arithmetic Brownian motion X(t) = x + μt + σW(t)
-    until it hits zero.
-    
-    Returns (hitting_time, times_array, path_array)
+    Simule le mouvement brownien arithmétique X(t) = x + μt + σW(t)
+    jusqu'à l'atteinte de 0.
+
+    Renvoie (temps_d_atteinte, grille_de_temps, trajectoire).
     """
     if rng is None:
         rng = np.random.default_rng()
@@ -187,20 +167,16 @@ def simulate_brownian_until_hit_zero(
 
 
 # ====================================================================== #
-#  Theoretical formulas
+#  Formules théoriques
 # ====================================================================== #
 
 def hitting_time_pdf_brownian(t: np.ndarray, x0: float,
                               mu: float, sigma: float) -> np.ndarray:
     """
-    PDF of first hitting time of 0 for BM starting at x0 > 0.
-    
-    X(t) = x0 + μt + σW(t), T₀ = inf{t: X(t) ≤ 0}
-    
-    This is the Inverse Gaussian distribution:
-        f(t) = (x0 / (σ √(2πt³))) exp(-(x0 + μt)² / (2σ²t))
-    
-    Valid when μ < 0 (negative drift, so hitting 0 is certain).
+    Densité du temps d'atteinte de 0 pour X(t) = x0 + μt + σW(t).
+
+    La formule correspond à une loi inverse gaussienne. Elle est utilisée ici
+    lorsque μ < 0, cas où l'atteinte de 0 est presque sûre.
     """
     t = np.asarray(t, dtype=float)
     with np.errstate(divide='ignore', invalid='ignore'):
@@ -212,7 +188,7 @@ def hitting_time_pdf_brownian(t: np.ndarray, x0: float,
 
 def hitting_time_cdf_brownian(t: np.ndarray, x0: float,
                               mu: float, sigma: float) -> np.ndarray:
-    """CDF of the Inverse Gaussian hitting time distribution."""
+    """Fonction de répartition du temps d'atteinte brownien."""
     from scipy.stats import norm
     t = np.asarray(t, dtype=float)
     with np.errstate(divide='ignore', invalid='ignore'):
@@ -226,21 +202,21 @@ def hitting_time_cdf_brownian(t: np.ndarray, x0: float,
 
 def hitting_time_mean_brownian(x0: float, mu: float) -> float:
     """
-    Mean hitting time E[T₀] for BM with drift μ < 0 starting at x0.
-    
-    E[T₀] = x0 / |μ|
+    Espérance \\mathbb{E}[T₀] du temps d'atteinte brownien, pour μ < 0.
+
+    \\mathbb{E}[T₀] = x0 / |μ|.
     """
     if mu >= 0:
-        return np.inf  # never hits 0 if drift is non-negative
+        return np.inf  # le temps moyen est infini si le drift est non négatif
     return x0 / abs(mu)
 
 
 def hitting_time_variance_brownian(x0: float, mu: float,
                                     sigma: float) -> float:
     """
-    Variance of T₀ for BM with drift μ < 0 starting at x0.
-    
-    Var[T₀] = x0 σ² / |μ|³
+    Variance de T₀ pour un brownien avec drift μ < 0.
+
+    Var[T₀] = x0 σ² / |μ|³.
     """
     if mu >= 0:
         return np.inf
@@ -250,13 +226,11 @@ def hitting_time_variance_brownian(x0: float, mu: float,
 def prob_q1_hits_first_brownian(x1: float, x2: float,
                                 mu: float, sigma: float) -> float:
     """
-    Approximate probability that queue 1 (starting at x1) hits zero
-    before queue 2 (starting at x2), assuming independent BMs.
-    
-    Uses the exact Inverse Gaussian CDF:
-        P(T₁ < T₂) = ∫₀^∞ f_{T₁}(t) · (1 - F_{T₂}(t)) dt
-    
-    Computed numerically.
+    Approxime P(T_1 < T_2) pour deux approximations browniennes indépendantes.
+
+    On utilise l'identité :
+        P(T_1 < T_2) = ∫ f_{T_1}(t) · [1 - F_{T_2}(t)] dt.
+    L'intégrale est calculée numériquement sur une grille de temps.
     """
     t_max = max(hitting_time_mean_brownian(x1, mu),
                 hitting_time_mean_brownian(x2, mu)) * 5
@@ -266,13 +240,13 @@ def prob_q1_hits_first_brownian(x1: float, x2: float,
     f1 = hitting_time_pdf_brownian(t_grid, x1, mu, sigma)
     F2 = hitting_time_cdf_brownian(t_grid, x2, mu, sigma)
 
-    # P(T1 < T2) = ∫ f₁(t) · [1 - F₂(t)] dt
+    # P(T1 < T2) = ∫ f1(t) · [1 - F2(t)] dt.
     prob = np.sum(f1 * (1 - F2) * dt)
     return float(np.clip(prob, 0, 1))
 
 
 # ====================================================================== #
-#  Batch simulation helpers
+#  Outils de simulation Monte Carlo
 # ====================================================================== #
 
 def batch_hitting_times(
@@ -284,15 +258,11 @@ def batch_hitting_times(
     seed: int = 42,
 ) -> dict:
     """
-    Run n_runs independent simulations, collect hitting times.
-    
-    Returns dict with:
-        'hitting_times': array of T₀ values
-        'which_hit': array of ±1 (which queue hit first)
-        'mean_T': mean hitting time
-        'std_T': std of hitting time
-        'ci_95': 95% CI for mean
-        'prob_q1_first': fraction of runs where Q_1 hit first
+    Lance n_runs simulations indépendantes et agrège les temps d'atteinte.
+
+    Le dictionnaire retourné contient les temps simulés, la file qui atteint 0
+    en premier, la moyenne empirique, l'écart-type, un IC à 95 %, et la
+    fréquence empirique de l'événement {Q_1 atteint 0 en premier}.
     """
     rng = np.random.default_rng(seed)
     times = np.zeros(n_runs)
@@ -329,11 +299,10 @@ def scan_initial_conditions(
     seed: int = 42,
 ) -> dict:
     """
-    Scan mean hitting time and P(Q1 first) over a grid of initial conditions.
-    
-    Returns dict with 2D arrays:
-        'mean_T_grid': shape (len(q_neg1_range), len(q1_range))
-        'prob_q1_grid': same shape
+    Étudie \\mathbb{E}[T_min] et P(Q_1 en premier) sur une grille de conditions initiales.
+
+    Les matrices retournées sont indexées par Q_{-1}(0) en ligne et Q_1(0)
+    en colonne.
     """
     rng = np.random.default_rng(seed)
     n1, n2 = len(q1_range), len(q_neg1_range)

@@ -3,12 +3,14 @@ Four-Queue Hawkes LOB System (I=2).
 
 Implements Section 1.2.4 (corrected signs) and Section 1.2.5 from MODAL v4.
 
-Four queues: N^{+1}, N^{+2} (bid), N^{-1}, N^{-2} (ask).
+Four queues: N^{+1}, N^{+2} (ask), N^{-1}, N^{-2} (bid).
+Sign convention:
+    positive index = ask side, negative index = bid side.
 
 First limits (i ∈ {+1, -1}) — Hawkes dynamics (eq. 3, corrected signs):
     λ^{i,+} = μ^{i,+}                                          (constant)
     λ^{i,-} = μ^{i,-}  - ∫ φ(t-s)(dN^{i,+} - dN^{i,-})        (self)
-                        + ∫ φ(t-s)(dN^{-i,+} - dN^{-i,-})      (cross)
+                        + ∫ φ(t-s)(dN^{-i,+} + dN^{-i,-})      (cross)
 
     Corrected interpretation (v4):
       Own additions    → DECREASE removal rate (inertia: growing queue keeps growing)
@@ -19,6 +21,7 @@ First limits (i ∈ {+1, -1}) — Hawkes dynamics (eq. 3, corrected signs):
 Second limits (j ∈ {+2, -2}):
     Q1.2.5.1: constant λ^{j,+} and λ^{j,-}
     Q1.2.5.2: λ^{-2,+}(t) = μ^{-2,+} + ∫ a·e^{-b(t-s)} dN^{-1,-}   (eq. 4)
+              λ^{+2,+}(t) = μ^{+2,+} + ∫ a·e^{-b(t-s)} dN^{+1,-}
               i.e., first limit removals EXCITE second limit additions
               ("rush to queue" when first limit is being depleted)
 """
@@ -62,10 +65,10 @@ class FourQueueParams:
     b_cross: float = 0.5        # decay rate for cross-excitation
 
     # Initial conditions
-    q1_init: int = 10
-    q_neg1_init: int = 10
-    q2_init: int = 5
-    q_neg2_init: int = 5
+    q1_init: int = 10       # Q^{+1}: ask first limit
+    q_neg1_init: int = 10   # Q^{-1}: bid first limit
+    q2_init: int = 5        # Q^{+2}: ask second limit
+    q_neg2_init: int = 5    # Q^{-2}: bid second limit
 
     @property
     def ratio(self):
@@ -127,8 +130,8 @@ def simulate_4queue(
     while t < T_max:
         # ── Current intensities ──────────────────────────────────
         # First limits: removal rates (Hawkes)
-        lam_m1 = max(0.01, p.mu_minus_1 + H[1])
-        lam_mn1 = max(0.01, p.mu_minus_1 + H[-1])
+        lam_m1 = max(0.01, p.mu_minus_1 + H[1]) if q[1] > 0 else 0.0
+        lam_mn1 = max(0.01, p.mu_minus_1 + H[-1]) if q[-1] > 0 else 0.0
 
         # First limits: addition rates (constant)
         lam_p1 = p.mu_plus_1 if q[1] >= 0 else 0.0
@@ -145,8 +148,8 @@ def simulate_4queue(
         # ── Thinning upper bound ─────────────────────────────────
         # H decays toward 0, G decays toward 0
         # Upper bound: use max(current, baseline)
-        ub_m1 = p.mu_minus_1 + max(H[1], 0)
-        ub_mn1 = p.mu_minus_1 + max(H[-1], 0)
+        ub_m1 = p.mu_minus_1 + max(H[1], 0) if q[1] > 0 else 0.0
+        ub_mn1 = p.mu_minus_1 + max(H[-1], 0) if q[-1] > 0 else 0.0
         ub_p2 = p.mu_plus_2 + max(G[2], 0)
         ub_pn2 = p.mu_plus_2 + max(G[-2], 0)
 
@@ -169,8 +172,8 @@ def simulate_4queue(
             G[-2] *= decay_cross
 
         # Recompute after decay
-        lam_m1 = max(0.01, p.mu_minus_1 + H[1])
-        lam_mn1 = max(0.01, p.mu_minus_1 + H[-1])
+        lam_m1 = max(0.01, p.mu_minus_1 + H[1]) if q[1] > 0 else 0.0
+        lam_mn1 = max(0.01, p.mu_minus_1 + H[-1]) if q[-1] > 0 else 0.0
         lam_p2 = max(0.01, p.mu_plus_2 + G[2])
         lam_pn2 = max(0.01, p.mu_plus_2 + G[-2])
         lam_m2 = p.mu_minus_2 if q[2] > 0 else 0.0
@@ -186,12 +189,12 @@ def simulate_4queue(
         # ── Select event ─────────────────────────────────────────
         # 8 possible events:
         rates = [
-            lam_p1,    # 0: Q1 add
-            lam_m1,    # 1: Q1 remove
+            lam_p1,    # 0: Q+1 add
+            lam_m1,    # 1: Q+1 remove
             lam_pn1,   # 2: Q-1 add
             lam_mn1,   # 3: Q-1 remove
-            lam_p2,    # 4: Q2 add
-            lam_m2,    # 5: Q2 remove
+            lam_p2,    # 4: Q+2 add
+            lam_m2,    # 5: Q+2 remove
             lam_pn2,   # 6: Q-2 add
             lam_mn2,   # 7: Q-2 remove
         ]
@@ -200,11 +203,11 @@ def simulate_4queue(
         event_idx = rng.choice(8, p=probs)
 
         # ── Apply event + update Hawkes states ───────────────────
-        if event_idx == 0:    # Q1 add (N^{+1,+})
+        if event_idx == 0:    # Q+1 add (N^{+1,+})
             q[1] += 1
             H[1] -= p.alpha     # own add → decrease own removal
             H[-1] += p.alpha    # opp sees my add → increase opp removal
-        elif event_idx == 1:  # Q1 remove (N^{+1,-})
+        elif event_idx == 1:  # Q+1 remove (N^{+1,-})
             q[1] = max(0, q[1] - 1)
             H[1] += p.alpha     # own remove → increase own removal
             H[-1] += p.alpha    # opp sees my remove → increase opp removal
@@ -218,9 +221,9 @@ def simulate_4queue(
             H[-1] += p.alpha
             H[1] += p.alpha
             G[-2] += p.a_cross
-        elif event_idx == 4:  # Q2 add
+        elif event_idx == 4:  # Q+2 add
             q[2] += 1
-        elif event_idx == 5:  # Q2 remove
+        elif event_idx == 5:  # Q+2 remove
             q[2] = max(0, q[2] - 1)
         elif event_idx == 6:  # Q-2 add
             q[-2] += 1
@@ -332,7 +335,7 @@ def four_model_comparison(
 
     Expected ordering: E[T_coupled] < E[T_single_H] < E[T_two_P] < E[T_single_P]
     """
-    from model.Hawkes import simulate_hawkes_queue, simulate_coupled_hawkes
+    from model.hawkes import simulate_hawkes_queue, simulate_coupled_hawkes
     from model.hitting_times import simulate_until_hit_zero
 
     rng = np.random.default_rng(seed)
