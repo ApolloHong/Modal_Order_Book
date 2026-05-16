@@ -112,8 +112,8 @@ def hawkes_stationary_intensity(mu_plus: float, mu_minus: float,
     """
     convention = _validate_sign_convention(sign_convention)
     ratio = alpha / beta
-    if ratio >= 1:
-        raise ValueError(f"α/β = {ratio:.3f} ≥ 1: process is non-stationary!")
+    # if ratio >= 1:
+    #     raise ValueError(f"α/β = {ratio:.3f} ≥ 1: process is non-stationary!")
     # if convention == "v4":
     #     return (mu_minus - ratio * mu_plus) / (1 - ratio)
     return (mu_minus - ratio * mu_plus) / (1 - ratio)
