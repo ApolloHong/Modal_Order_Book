@@ -126,6 +126,9 @@ def simulate_4queue(
 
     n_events = 0
     evt_count = 0
+    hit_zero = False
+    hitting_time = t
+    which_hit = 0
 
     while t < T_max:
         # ── Current intensities ──────────────────────────────────
@@ -233,6 +236,11 @@ def simulate_4queue(
         n_events += 1
         evt_count += 1
 
+        if not hit_zero and (q[1] <= 0 or q[-1] <= 0):
+            hit_zero = True
+            hitting_time = t
+            which_hit = 1 if q[1] <= 0 else -1
+
         # Record
         if evt_count % record_every == 0:
             times_list.append(t)
@@ -244,8 +252,7 @@ def simulate_4queue(
             lp2_rec[-2].append(max(0.01, p.mu_plus_2 + G[-2]))
 
         # Check stopping
-        if stop_at_first_limit_zero and (q[1] <= 0 or q[-1] <= 0):
-            which = 1 if q[1] <= 0 else -1
+        if stop_at_first_limit_zero and hit_zero:
             times_list.append(t)
             for i in [1, -1, 2, -2]:
                 q_rec[i].append(q[i])
@@ -258,7 +265,7 @@ def simulate_4queue(
                 q_paths={i: np.array(q_rec[i]) for i in [1,-1,2,-2]},
                 lam_minus_paths={i: np.array(lm_rec[i]) for i in [1,-1]},
                 lam_plus_2_paths={i: np.array(lp2_rec[i]) for i in [2,-2]},
-                hitting_time=t, which_hit=which, hit_zero=True,
+                hitting_time=hitting_time, which_hit=which_hit, hit_zero=True,
                 n_events=n_events)
 
     return FourQueueResult(
@@ -266,7 +273,9 @@ def simulate_4queue(
         q_paths={i: np.array(q_rec[i]) for i in [1,-1,2,-2]},
         lam_minus_paths={i: np.array(lm_rec[i]) for i in [1,-1]},
         lam_plus_2_paths={i: np.array(lp2_rec[i]) for i in [2,-2]},
-        hitting_time=t, which_hit=0, hit_zero=False,
+        hitting_time=hitting_time if hit_zero else t,
+        which_hit=which_hit,
+        hit_zero=hit_zero,
         n_events=n_events)
 
 
