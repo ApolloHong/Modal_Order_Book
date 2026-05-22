@@ -1,25 +1,31 @@
-"""
-Queue Reactive (QR) Order Book Models
-======================================
-
-A modular framework for simulating limit order book dynamics
-using Queue Reactive models.
-
-Quick start:
-    from model import QRConstant, Simulator, LOBState
-
-    model = QRConstant(I=1)
-    state = model.create_initial_state(q_bid=5, q_ask=5)
-    sim = Simulator(model, seed=42)
-    result = sim.run(state, T=100.0)
-"""
+"""Limit order book simulations and rare-event estimators."""
 
 from model.lob import LOBState
 from model.events import Event, EventType
-from model.base import BaseQRModel
-from model.qr_constant import QRConstant
-from model.qr_imbalance import QRImbalance
-from model.simulator import Simulator, SimulationResult
+from model.ogata import (
+    Checkpoint,
+    Trajectory,
+    IndependentPoissonSimulator,
+    SingleHawkesSimulator,
+    CoupledHawkesSimulator,
+    FourQueueHawkesSimulator,
+)
+from model.rare_events import (
+    RareEventProblem,
+    q1_depletion_problem,
+    ask_best_depletion_problem,
+    bid_best_depletion_problem,
+    min_best_depletion_problem,
+    imbalance_crossing_problem,
+    second_limit_activation_problem,
+    q2_after_q1_depletion_problem,
+)
+from model.splitting import (
+    SplittingResult,
+    AMSResult,
+    FixedLevelSplitting,
+    AdaptiveMultilevelSplitting,
+)
 from model import analysis
 from model import hitting_times
 from model.hitting_times import (
@@ -39,11 +45,24 @@ __all__ = [
     "LOBState",
     "Event",
     "EventType",
-    "BaseQRModel",
-    "QRConstant",
-    "QRImbalance",
-    "Simulator",
-    "SimulationResult",
+    "Checkpoint",
+    "Trajectory",
+    "IndependentPoissonSimulator",
+    "SingleHawkesSimulator",
+    "CoupledHawkesSimulator",
+    "FourQueueHawkesSimulator",
+    "RareEventProblem",
+    "q1_depletion_problem",
+    "ask_best_depletion_problem",
+    "bid_best_depletion_problem",
+    "min_best_depletion_problem",
+    "imbalance_crossing_problem",
+    "second_limit_activation_problem",
+    "q2_after_q1_depletion_problem",
+    "SplittingResult",
+    "AMSResult",
+    "FixedLevelSplitting",
+    "AdaptiveMultilevelSplitting",
     "analysis",
     "hitting_times",
     "HittingTimeResult",
