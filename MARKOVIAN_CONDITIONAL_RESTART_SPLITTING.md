@@ -49,15 +49,14 @@ positive index = ask side
 negative index = bid side
 ```
 
-The notebook-facing five-dimensional excitation vector is:
+The notebook-facing four-component excitation vector is:
 
 ```text
 S_k = (
-    S_k^{1,+},
-    S_k^{1,-},
-    S_k^{2,+},
-    S_k^{2,-},
-    S_k^{1,+ -> 2,-}
+    S_k^{+1,-},
+    S_k^{-1,-},
+    S_k^{+1,- -> +2,+},
+    S_k^{-1,- -> -2,+}
 )
 ```
 
@@ -73,12 +72,12 @@ G[1] = second-limit addition excitation for Q-2
 Therefore the exported vector is:
 
 ```text
-[H[0], H[1], G[0], G[1], G[1]]
+[H[0], H[1], G[0], G[1]]
 ```
 
-The fifth component duplicates `G[1]` intentionally: in the current model,
-`G[1]` is the implemented cross-excitation channel from first-limit bid
-removals to second-limit bid additions, i.e. `Q-1 -> Q-2`.
+There is no duplicated cross component. `G[0]` is exposed as
+`S^{+1,- -> +2,+}` for the ask side, and `G[1]` is exposed as
+`S^{-1,- -> -2,+}` for the bid side.
 
 ## Boundary Law
 
@@ -88,6 +87,15 @@ The method first estimates empirical conditional laws at near-boundary levels:
 Law(S_k | Q-1 = 1)
 Law(S_k | Q+1 = 1)
 ```
+
+For Hawkes boundary collection, the default burn-in is
+
+```text
+10 / (beta * (1 - alpha / beta))
+```
+
+when `alpha / beta < 1`. For the nb3 parameters `alpha=0.3` and `beta=0.5`,
+this gives a burn-in horizon of `50`.
 
 Each collected boundary checkpoint contains:
 
@@ -127,6 +135,11 @@ the intensity to baseline, is mathematically wrong for Hawkes models.
 For `nb3`, `Q-2 | Q-1 = 0` is the bid same-side second-limit distribution, while
 `Q-2 | Q+1 = 0` observes the bid second limit when the opposite first queue
 depletes.
+
+The notebook also includes a multilevel MCRS estimator over queue levels
+`[8, 6, 4, 2, 1, 0]` and a matched-budget comparison against naive Ogata Monte
+Carlo. These are estimator-layer additions; the underlying Ogata Hawkes
+dynamics are unchanged.
 
 ## Limitations
 

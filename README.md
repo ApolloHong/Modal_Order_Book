@@ -139,18 +139,18 @@ The notebook uses the following interpretation:
 For the four-queue Hawkes model, the notebook-facing excitation vector is:
 
 ```text
-S = [S^{1,+}, S^{1,-}, S^{2,+}, S^{2,-}, S^{1,+ -> 2,-}]
+S = [S^{+1,-}, S^{-1,-}, S^{+1,- -> +2,+}, S^{-1,- -> -2,+}]
 ```
 
 In the current implementation this is extracted from the checkpoint as:
 
 ```text
-[H[0], H[1], G[0], G[1], G[1]]
+[H[0], H[1], G[0], G[1]]
 ```
 
-The fifth component is intentionally repeated from `G[1]` so that the
-professor-facing cross-excitation channel `Q-1 -> Q-2` is visible in tables and
-plots.
+Here `G[0]` is the ask-side cross excitation from `Q+1` removals to `Q+2`
+additions, and `G[1]` is the bid-side cross excitation from `Q-1` removals to
+`Q-2` additions. No component is duplicated.
 
 ### What nb3 Visualizes
 
@@ -162,12 +162,16 @@ The notebook includes:
 
 - empirical conditional excitation summaries for `Law(S | Q-1 = 1)` and
   `Law(S | Q+1 = 1)`;
-- marginal histograms of the five-dimensional `S` vector;
+- marginal histograms of the four-component `S` vector;
 - two-dimensional joint distributions of important `S` components;
 - restart-content tables showing sampled boundary states, start/end excitation,
   success flags, local hitting times, and final `Q-2`;
 - histograms of `Q-2_same`, `Q-2_opp`, `Q-2 | Q-1 = 0`, and `Q-2 | Q+1 = 0`;
-- sensitivity plots as a function of the cross-excitation parameter `a_cross`.
+- sensitivity plots as a function of the cross-excitation parameter `a_cross`;
+- bootstrap confidence intervals for conditional `Q-2` means and
+  same-minus-opposite differences;
+- a real multilevel MCRS estimator over queue levels `[8, 6, 4, 2, 1, 0]`;
+- a matched-budget comparison against naive Ogata Monte Carlo.
 
 Ogata thinning is still used inside the simulator to generate each local path,
 but the estimator and the plotted Section 1.2.5 quantities are MCRS-based.
@@ -191,7 +195,12 @@ from model import (
     BoundarySample,
     RestartSplittingResult,
     collect_boundary_states,
+    default_hawkes_burn_in,
     restart_from_boundary_distribution,
+    run_naive_depletion_monte_carlo,
+    multilevel_markovian_restart_splitting,
+    bootstrap_mean_ci,
+    bootstrap_difference_ci,
     summarize_conditional_S,
     run_markovian_conditional_restart_splitting,
 )
@@ -334,7 +343,7 @@ The test suite checks:
 - Poisson tail validation against an exact probability
 - Fixed-Level Splitting and AMS legacy behavior
 - Markovian Conditional Restart Splitting boundary/restart behavior
-- conditional `S` extraction, including the five-dimensional four-queue mapping
+- conditional `S` extraction, including the four-component four-queue mapping
 - deterministic reproducibility with fixed seeds
 - Hawkes checkpoint memory preservation
 - non-negative Hawkes intensities

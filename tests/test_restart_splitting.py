@@ -15,6 +15,7 @@ from model.restart_splitting import (
     extract_excitation_vector,
     local_depletion_target_fn,
     local_recovery_fn,
+    multilevel_markovian_restart_splitting,
     restart_from_boundary_distribution,
     summarize_conditional_S,
 )
@@ -72,7 +73,7 @@ def test_coupled_hawkes_boundary_sample_has_two_dimensional_S():
     assert summary["n_samples"] == len(sample.checkpoints)
 
 
-def test_four_queue_five_dimensional_S_maps_cross_component_to_qminus2():
+def test_four_queue_S_maps_ask_and_bid_cross_components_without_duplication():
     checkpoint = Checkpoint(
         time=1.0,
         state=np.array([5.0, 1.0, 7.0, 9.0]),
@@ -83,9 +84,10 @@ def test_four_queue_five_dimensional_S_maps_cross_component_to_qminus2():
 
     S, names, diagnostics = extract_excitation_vector(checkpoint, model_name="four_queue_hawkes")
 
-    np.testing.assert_allclose(S, np.array([0.2, 0.4, 0.6, 0.8, 0.8]))
-    assert names[-1] == "S^{1,+ -> 2,-}"
-    assert "Q-1 removals excite Q-2 additions" in diagnostics["cross_component_note"]
+    np.testing.assert_allclose(S, np.array([0.2, 0.4, 0.6, 0.8]))
+    assert names[-2] == "S^{+1,- -> +2,+}"
+    assert names[-1] == "S^{-1,- -> -2,+}"
+    assert "Q-1 removal -> Q-2 addition" in diagnostics["cross_component_note"]
 
 
 def test_restart_from_boundary_preserves_or_resets_excitation_explicitly():
@@ -94,7 +96,7 @@ def test_restart_from_boundary_preserves_or_resets_excitation_explicitly():
     state = MarkovState(
         t=2.0,
         queues=np.array([5.0, 1.0, 5.0, 5.0]),
-        excitation=np.array([0.1, 0.3, 0.2, 0.7, 0.7]),
+        excitation=np.array([0.1, 0.3, 0.2, 0.7]),
         intensity=np.ones(8),
         hawkes_state={"H": np.array([0.1, 0.3]), "G": np.array([0.2, 0.7])},
         metadata={"queue_indices": [1, -1, 2, -2]},
@@ -140,3 +142,33 @@ def test_hawkes_decay_jump_consistency_formula():
     S_new = S_old * np.exp(-beta * dt) + jump
 
     np.testing.assert_allclose(S_new, np.array([0.4, -0.2]) * np.exp(-0.5 * 1.7) + jump)
+
+
+def test_multilevel_restart_splitting_runs_and_preserves_checkpoints():
+    params = FourQueueParams(
+        mu_plus_1=0.8,
+        mu_minus_1=1.8,
+        alpha=0.2,
+        beta=0.6,
+        q1_init=6,
+        q_neg1_init=6,
+        a_cross=0.3,
+    )
+    simulator = FourQueueHawkesSimulator(params)
+    result = multilevel_markovian_restart_splitting(
+        simulator=simulator,
+        initial_state=[6, 6, 5, 5],
+        queue_index=-1,
+        levels=[4, 2, 1, 0],
+        horizon=20.0,
+        n_particles=40,
+        rng=123,
+        burn_in=0.0,
+        queue_indices=[1, -1, 2, -2],
+    )
+
+    assert 0.0 <= result.probability_estimate <= 1.0
+    assert len(result.level_probabilities) >= 1
+    for checkpoint in result.final_checkpoints:
+        assert "H" in checkpoint.state.hawkes_state
+        assert "G" in checkpoint.state.hawkes_state

@@ -276,7 +276,7 @@ def run_mc_baseline(
     problem: Any,
     n_runs: int,
     seed: int = 42,
-    burn_in: float = 0.0,
+    burn_in: Optional[float] = None,
     store_trajectories: bool = False,
 ) -> dict:
     """Run classical Monte Carlo using the baseline path simulator."""
@@ -319,7 +319,7 @@ def run_fixed_level_splitting(
     levels: list[float],
     n_particles: int,
     seed: int = 42,
-    burn_in: float = 0.0,
+    burn_in: Optional[float] = None,
     store_trajectories: bool = True,
 ) -> dict:
     """Run Fixed-Level Splitting and return a table-friendly summary."""
