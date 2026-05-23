@@ -1,8 +1,9 @@
 """Continuation-capable path simulators for rare-event estimation.
 
 Ogata thinning is used here only to simulate the underlying point-process path.
-Rare-event estimators such as splitting and AMS live in ``model.splitting`` and
-resample promising trajectories by cloning from explicit checkpoints.
+The assignment-facing rare-event layer is Markovian Conditional Restart
+Splitting in ``model.restart_splitting``.  Legacy Fixed-Level Splitting and AMS
+experiments remain in ``model.splitting``.
 """
 
 from __future__ import annotations
