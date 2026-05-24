@@ -349,32 +349,33 @@ def collect_boundary_states(
     warnings: list[str] = []
     model_name = _infer_model_name_from_simulator(simulator)
 
-    for _ in range(int(n_paths)):
-        trajectory = simulator.simulate(problem, rng=stream.next(), burn_in=resolved_burn_in, record_path=record_path)
-        n_events += trajectory.n_events
-        n_candidates += trajectory.n_candidates
-        if not trajectory.hit or not trajectory.checkpoints:
-            continue
-        cp = trajectory.checkpoints[-1].copy()
-        markov_state = checkpoint_to_markov_state(cp, simulator=simulator, model_name=model_name)
-        observable = {
-            "final_queue_state": markov_state.queues.copy(),
-            "n_events": trajectory.n_events,
-            "n_candidates": trajectory.n_candidates,
-        }
-        warning = markov_state.metadata.get("S_reconstruction_warning")
-        if warning:
-            warnings.append(str(warning))
-        checkpoints.append(
-            BoundaryCheckpoint(
-                state=markov_state,
-                boundary_name=b_name,
-                boundary_level=int(boundary_level),
-                queue_label=q_label,
-                t_hit=markov_state.t,
-                observable=observable,
+    with Timer() as timer:
+        for _ in range(int(n_paths)):
+            trajectory = simulator.simulate(problem, rng=stream.next(), burn_in=resolved_burn_in, record_path=record_path)
+            n_events += trajectory.n_events
+            n_candidates += trajectory.n_candidates
+            if not trajectory.hit or not trajectory.checkpoints:
+                continue
+            cp = trajectory.checkpoints[-1].copy()
+            markov_state = checkpoint_to_markov_state(cp, simulator=simulator, model_name=model_name)
+            observable = {
+                "final_queue_state": markov_state.queues.copy(),
+                "n_events": trajectory.n_events,
+                "n_candidates": trajectory.n_candidates,
+            }
+            warning = markov_state.metadata.get("S_reconstruction_warning")
+            if warning:
+                warnings.append(str(warning))
+            checkpoints.append(
+                BoundaryCheckpoint(
+                    state=markov_state,
+                    boundary_name=b_name,
+                    boundary_level=int(boundary_level),
+                    queue_label=q_label,
+                    t_hit=markov_state.t,
+                    observable=observable,
+                )
             )
-        )
 
     if checkpoints:
         S_samples = _stack_or_empty([cp.state.excitation for cp in checkpoints])
@@ -401,6 +402,7 @@ def collect_boundary_states(
             "burn_in": float(resolved_burn_in),
             "burn_in_default_used": burn_in is None,
             "horizon": float(horizon),
+            "cpu_seconds": timer.elapsed,
             "n_events": int(n_events),
             "n_candidates": int(n_candidates),
             "S_component_names": component_names,
