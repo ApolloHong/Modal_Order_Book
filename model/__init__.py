@@ -54,6 +54,13 @@ from model.restart_splitting import (
     plot_conditional_S_pairwise,
     plot_conditional_S_heatmap,
 )
+from model.plotting_utils import (
+    safe_barplot_metric,
+    plot_hist_with_ci,
+    plot_delta_with_ci,
+    plot_joint_scatter_or_hexbin,
+    format_metric_table,
+)
 from model import analysis
 from model import hitting_times
 from model.analysis import run_markovian_conditional_restart_splitting
@@ -118,6 +125,11 @@ __all__ = [
     "plot_conditional_S_marginals",
     "plot_conditional_S_pairwise",
     "plot_conditional_S_heatmap",
+    "safe_barplot_metric",
+    "plot_hist_with_ci",
+    "plot_delta_with_ci",
+    "plot_joint_scatter_or_hexbin",
+    "format_metric_table",
     "run_markovian_conditional_restart_splitting",
     "analysis",
     "hitting_times",

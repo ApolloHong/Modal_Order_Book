@@ -595,6 +595,8 @@ def restart_from_boundary_distribution(
             ),
             "unique_checkpoint_usage_frequency": usage_frequency,
             "checkpoint_usage_effective_sample_size": usage_ess,
+            "checkpoint_usage_ess": usage_ess,
+            "effective_sample_size": usage_ess,
             "boundary_metadata": sample_metadata,
         },
     )
@@ -1034,6 +1036,22 @@ def multilevel_markovian_restart_splitting(
             "probability_se_delta": probability_se,
             "confidence_interval_delta": _normal_confidence_interval(probability, probability_se),
             "resampling_usage": resampling_usage,
+            "effective_sample_size": (
+                min(
+                    _usage_effective_sample_size(np.asarray(list(usage.values()), dtype=float))
+                    for usage in resampling_usage
+                )
+                if resampling_usage
+                else np.nan
+            ),
+            "checkpoint_usage_ess": (
+                min(
+                    _usage_effective_sample_size(np.asarray(list(usage.values()), dtype=float))
+                    for usage in resampling_usage
+                )
+                if resampling_usage
+                else np.nan
+            ),
             "effective_sample_size_by_level": [
                 _usage_effective_sample_size(np.asarray(list(usage.values()), dtype=float))
                 for usage in resampling_usage
