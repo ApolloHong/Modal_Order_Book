@@ -12,10 +12,8 @@ Hawkes Model (Hypothèse 3, convention corrigée v4):
     Interpretation: additions decrease the future removal intensity (inertia),
     while removals increase it (self-excitation of depletion).
 
-    Stationary mean, v4 convention:
+    Stationary mean, corrected v4 convention:
         m⁻ = (μ⁻ - (α/β)μ⁺) / (1 - α/β)
-    Stationary mean, inverse historical convention:
-        m⁻ = (μ⁻ + (α/β)μ⁺) / (1 + α/β)
     Stationarity condition: α/β < 1
 """
 
@@ -100,22 +98,17 @@ def hawkes_stationary_intensity(mu_plus: float, mu_minus: float,
     """
     Stationary mean of λ⁻(t) for the Hawkes model.
 
-    v4 corrected signs:
+    Corrected v4 signs:
         λ⁻ = μ⁻ - φ*dN⁺ + φ*dN⁻
         m⁻ = (μ⁻ - (α/β)·μ⁺) / (1 - α/β)
 
-    inverse historical signs:
-        λ⁻ = μ⁻ + φ*dN⁺ - φ*dN⁻
-        m⁻ = (μ⁻ + (α/β)·μ⁺) / (1 + α/β)
+    The sign_convention argument is kept for backward-compatible calls, but
+    the assignment convention is unified to the v4 formula above.
 
     Requires α/β < 1 for stationarity.
     """
-    convention = _validate_sign_convention(sign_convention)
+    _validate_sign_convention(sign_convention)
     ratio = alpha / beta
-    # if ratio >= 1:
-    #     raise ValueError(f"α/β = {ratio:.3f} ≥ 1: process is non-stationary!")
-    # if convention == "v4":
-    #     return (mu_minus - ratio * mu_plus) / (1 - ratio)
     return (mu_minus - ratio * mu_plus) / (1 - ratio)
 
 

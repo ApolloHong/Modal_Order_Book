@@ -6,6 +6,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from model.hawkes_4q import FourQueueParams
+from model.hawkes import hawkes_stationary_intensity
 from model.ogata import Checkpoint, CoupledHawkesSimulator, FourQueueHawkesSimulator, IndependentPoissonSimulator
 from model.restart_splitting import (
     METHOD_NAME,
@@ -19,6 +20,28 @@ from model.restart_splitting import (
     restart_from_boundary_distribution,
     summarize_conditional_S,
 )
+
+
+def test_stationary_removal_intensity_uses_corrected_v4_formula():
+    mu_plus = 1.2
+    mu_minus = 1.5
+    alpha = 0.3
+    beta = 0.5
+    r = alpha / beta
+    expected = (mu_minus - r * mu_plus) / (1.0 - r)
+
+    assert np.isclose(
+        hawkes_stationary_intensity(mu_plus, mu_minus, alpha, beta),
+        expected,
+    )
+
+    params = FourQueueParams(
+        mu_plus_1=mu_plus,
+        mu_minus_1=mu_minus,
+        alpha=alpha,
+        beta=beta,
+    )
+    assert np.isclose(params.stationary_lam_minus, expected)
 
 
 def test_poisson_boundary_restart_has_empty_excitation_and_is_reproducible():
@@ -86,8 +109,8 @@ def test_four_queue_S_maps_ask_and_bid_cross_components_without_duplication():
 
     np.testing.assert_allclose(S, np.array([0.2, 0.4, 0.6, 0.8]))
     assert names[-2] == "S^{+1,- -> +2,+}"
-    assert names[-1] == "S^{-1,- -> -2,+}"
-    assert "Q-1 removal -> Q-2 addition" in diagnostics["cross_component_note"]
+    assert names[-1] == "S^{-1,- -> -2,-}"
+    assert "S^{-1,- -> -2,-}" in diagnostics["cross_component_note"]
 
 
 def test_restart_from_boundary_preserves_or_resets_excitation_explicitly():

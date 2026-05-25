@@ -76,11 +76,20 @@ class FourQueueParams:
 
     @property
     def stationary_lam_minus(self):
-        """Stationary mean of λ^{i,-} for first limits (approximate)."""
+        """Stationary mean of λ^{i,-} under the corrected v4 convention.
+
+        With r = alpha / beta, the first-limit mean removal intensity solves
+
+            (1 - r) m^- = mu^- - r mu^+,
+
+        hence
+
+            m^- = (mu^- - r mu^+) / (1 - r).
+        """
         r = self.ratio
         if r >= 1:
             return float('inf')
-        return (self.mu_minus_1 + r * self.mu_plus_1) / (1 + r)
+        return (self.mu_minus_1 - r * self.mu_plus_1) / (1 - r)
 
 
 def simulate_4queue(
