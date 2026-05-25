@@ -1,12 +1,12 @@
 """
-Analysis utilities for QR model simulations.
+Utilitaires d'analyse pour les simulations de modèles QR (Queue Resilience).
 
-Computes key metrics from simulation results:
-    - Mean reversion ratio η = N_c / (2 N_a)
-    - Volatility (at various sampling frequencies)
-    - Empirical stationary distribution
-    - Inter-event time statistics
-    - Imbalance trajectory
+Calcule des métriques clés à partir des résultats de simulation :
+    - Ratio de retour à la moyenne η = N_c / (2 N_a)
+    - Volatilité (à diverses fréquences d'échantillonnage)
+    - Distribution stationnaire empirique
+    - Statistiques de temps inter-événements
+    - Trajectoire du déséquilibre (imbalance)
 """
 
 import numpy as np
@@ -14,27 +14,27 @@ from typing import Any, Optional
 
 
 # ====================================================================== #
-#  Mean Reversion Ratio
+#  Ratio de retour à la moyenne
 # ====================================================================== #
 
 def mean_reversion_ratio(result: Any) -> dict:
     """
-    Compute the mean reversion ratio η = N_c / (2 N_a).
+    Calcule le ratio de retour à la moyenne η = N_c / (2 N_a).
     
-    From Robert & Rosenbaum (2011):
-        N_c = number of CONTINUATIONS (consecutive moves in same direction)
-        N_a = number of ALTERNATIONS (consecutive moves in opposite directions)
+    D'après Robert & Rosenbaum (2011) :
+        N_c = nombre de CONTINUATIONS (mouvements consécutifs dans la même direction)
+        N_a = nombre d'ALTERNANCES (mouvements consécutifs dans des directions opposées)
         η = N_c / (2 N_a)
     
-    η < 0.5 → strong mean reversion (price tends to reverse)
-    η = 0.5 → random walk (no memory)
-    η > 0.5 → trending / momentum
+    η < 0.5 → fort retour à la moyenne (le prix tend à s'inverser)
+    η = 0.5 → marche aléatoire (pas de mémoire)
+    η > 0.5 → tendance / momentum
     
-    Returns
+    Retours
     -------
-    dict with keys: 'eta', 'N_c', 'N_a', 'n_moves', 'directions'
+    dict avec les clés : 'eta', 'N_c', 'N_a', 'n_moves', 'directions'
     """
-    # Extract price moves (non-zero changes only)
+    # Extraire les mouvements de prix (changements non nuls uniquement)
     _, prices = result.price_array()
     dp = np.diff(prices)
     moves = dp[dp != 0]
@@ -42,12 +42,12 @@ def mean_reversion_ratio(result: Any) -> dict:
     if len(moves) < 2:
         return {'eta': np.nan, 'N_c': 0, 'N_a': 0, 'n_moves': len(moves)}
 
-    # Direction of each move: +1 or -1
+    # Direction de chaque mouvement : +1 ou -1
     directions = np.sign(moves)
 
-    # Count continuations and alternations
-    N_c = 0  # continuations (same direction twice)
-    N_a = 0  # alternations (opposite directions)
+    # Compter les continuations et alternances
+    N_c = 0  # continuations (même direction deux fois)
+    N_a = 0  # alternances (directions opposées)
     for k in range(1, len(directions)):
         if directions[k] == directions[k - 1]:
             N_c += 1
@@ -66,25 +66,25 @@ def mean_reversion_ratio(result: Any) -> dict:
 
 
 # ====================================================================== #
-#  Volatility
+#  Volatilité
 # ====================================================================== #
 
 def compute_volatility(result: Any,
                        dt: float = 10.0,
                        unit: str = 'bps') -> dict:
     """
-    Compute realized volatility at sampling frequency dt.
+    Calcule la volatilité réalisée à une fréquence d'échantillonnage dt.
     
-    Parameters
+    Paramètres
     ----------
     dt : float
-        Sampling interval in seconds (default: 10s).
+        Intervalle d'échantillonnage en secondes (défaut : 10s).
     unit : str
-        'bps' for basis points, 'pct' for percent, 'raw' for raw.
+        'bps' pour points de base, 'pct' pour pourcentage, 'raw' pour brut.
     
-    Returns
+    Retours
     -------
-    dict with 'vol', 'returns', 'sample_prices', 'sample_times'
+    dict avec 'vol', 'returns', 'sample_prices', 'sample_times'
     """
     t_arr, p_arr = result.price_array()
     if len(p_arr) < 2:
@@ -109,7 +109,7 @@ def compute_volatility(result: Any,
 
 
 # ====================================================================== #
-#  Stationary Distribution
+#  Distribution stationnaire
 # ====================================================================== #
 
 def stationary_distribution(result: Any,
@@ -117,24 +117,24 @@ def stationary_distribution(result: Any,
                             burn_in_frac: float = 0.1,
                             max_n: int = 50) -> dict:
     """
-    Estimate the empirical stationary distribution of queue i.
+    Estime la distribution stationnaire empirique de la file i.
     
-    Parameters
+    Paramètres
     ----------
     queue_index : int
-        Which queue (-1 for bid, 1 for ask, etc.)
+        Quelle file (-1 pour bid, 1 pour ask, etc.)
     burn_in_frac : float
-        Fraction of snapshots to discard as burn-in.
+        Fraction des instantanés (snapshots) à ignorer en tant que période de chauffe.
     max_n : int
-        Maximum queue size to consider.
+        Taille de file maximale à considérer.
     
-    Returns
+    Retours
     -------
-    dict with 'pmf', 'ns', 'mean', 'std', 'samples'
+    dict avec 'pmf', 'ns', 'mean', 'std', 'samples'
     """
     snaps = result.snapshots
     if not snaps:
-        raise ValueError("No snapshots available. Run simulation with snapshot_interval.")
+        raise ValueError("Aucun instantané disponible. Exécutez la simulation avec snapshot_interval.")
 
     start = int(burn_in_frac * len(snaps))
     samples = np.array([s.q(queue_index) for _, s in snaps[start:]])
@@ -153,16 +153,16 @@ def stationary_distribution(result: Any,
 
 
 # ====================================================================== #
-#  Imbalance Trajectory
+#  Trajectoire du déséquilibre
 # ====================================================================== #
 
 def imbalance_trajectory(result: Any) -> tuple[np.ndarray, np.ndarray]:
     """
-    Compute the imbalance trajectory over time.
+    Calcule la trajectoire du déséquilibre au cours du temps.
     
     imb(t) = (Q_{-1}(t) - Q_1(t)) / (Q_{-1}(t) + Q_1(t))
     
-    Returns (times, imbalances) arrays.
+    Retourne les tableaux (temps, déséquilibres).
     """
     if not result.queue_path:
         return np.array([]), np.array([])
@@ -181,19 +181,19 @@ def imbalance_trajectory(result: Any) -> tuple[np.ndarray, np.ndarray]:
 
 
 # ====================================================================== #
-#  Price at Infinity (starting price impact)
+#  Prix à l'infini (impact initial du prix)
 # ====================================================================== #
 
 def price_at_infinity(results_batch: list[Any]) -> dict:
     """
-    Estimate the final price distribution from a batch of simulations.
+    Estime la distribution finale des prix à partir d'un lot de simulations.
     
-    Useful for studying: given an initial price and LOB state,
-    what is the distribution of p(+∞)?
+    Utile pour étudier : étant donné un prix initial et l'état du LOB,
+    quelle est la distribution de p(+∞) ?
     
-    Returns
+    Retours
     -------
-    dict with 'final_prices', 'mean', 'std', 'ci_95'
+    dict avec 'final_prices', 'mean', 'std', 'ci_95'
     """
     finals = []
     for r in results_batch:
@@ -217,14 +217,14 @@ def price_at_infinity(results_batch: list[Any]) -> dict:
 
 
 # ====================================================================== #
-#  Batch Summary
+#  Résumé par lot (batch)
 # ====================================================================== #
 
 def batch_summary(results: list[Any], dt_vol: float = 10.0) -> dict:
     """
-    Compute summary statistics across a batch of simulation runs.
+    Calcule des statistiques récapitulatives sur un lot de simulations.
     
-    Returns dict with arrays of per-run metrics.
+    Retourne un dict avec les tableaux des métriques par exécution.
     """
     etas = []
     vols = []
@@ -268,7 +268,7 @@ def batch_summary(results: list[Any], dt_vol: float = 10.0) -> dict:
 
 
 # ====================================================================== #
-#  Rare-event estimator comparison
+#  Comparaison d'estimateurs d'événements rares
 # ====================================================================== #
 
 def run_mc_baseline(
@@ -279,7 +279,7 @@ def run_mc_baseline(
     burn_in: Optional[float] = None,
     store_trajectories: bool = False,
 ) -> dict:
-    """Run classical Monte Carlo using the baseline path simulator."""
+    """Exécute une Monte Carlo classique en utilisant le simulateur de trajectoire de référence."""
     from .utils import RNGStream, Timer, binomial_standard_error
 
     stream = RNGStream(seed)
@@ -322,7 +322,7 @@ def run_fixed_level_splitting(
     burn_in: Optional[float] = None,
     store_trajectories: bool = True,
 ) -> dict:
-    """Run Fixed-Level Splitting and return a table-friendly summary."""
+    """Exécute le fractionnement à niveaux fixes (Fixed-Level Splitting) et retourne un résumé."""
     from .splitting import FixedLevelSplitting
     from .utils import Timer
 
@@ -364,7 +364,7 @@ def run_ams(
     burn_in: float = 0.0,
     store_trajectories: bool = True,
 ) -> dict:
-    """Run Adaptive Multilevel Splitting and return a table-friendly summary."""
+    """Exécute le fractionnement adaptatif multiniveaux (AMS) et retourne un résumé."""
     from .splitting import AdaptiveMultilevelSplitting
     from .utils import Timer
 
@@ -381,8 +381,8 @@ def run_ams(
     with Timer() as timer:
         result = estimator.run()
     p_hat = result.probability_estimate
-    # A single AMS run does not provide an honest standard error; use repeated
-    # macro-replications for publication-quality error bars.
+    # Une seule exécution AMS ne fournit pas d'erreur type honnête ; utilisez des
+    # macro-réplications répétées pour des barres d'erreur de qualité publication.
     return {
         "method": "AMS",
         "probability_estimate": p_hat,
@@ -408,16 +408,16 @@ def run_ams_replications(
     seed: int = 42,
     burn_in: float = 0.0,
 ) -> dict:
-    """Run independent AMS macro-replications and estimate empirical error bars.
+    """Exécute des macro-réplications AMS indépendantes et estime les barres d'erreur empiriques.
 
-    A single AMS population gives a rare-event probability estimate but does not
-    expose a simple, model-free standard error.  Independent macro-replications
-    provide an honest empirical standard error for the mean estimate.
+    Une seule population AMS donne une estimation de probabilité d'événement rare mais ne
+    fournit pas d'erreur type simple et sans modèle. Les macro-réplications indépendantes
+    fournissent une erreur type empirique honnête pour l'estimation moyenne.
     """
     from .utils import RNGStream, Timer
 
     if n_replications <= 0:
-        raise ValueError("n_replications must be positive")
+        raise ValueError("n_replications doit être positif")
 
     stream = RNGStream(seed)
     estimates: list[float] = []
@@ -487,11 +487,11 @@ def run_ams_replications(
 
 
 def extract_four_queue_depletion_samples(trajectories: list[Any]) -> dict:
-    """Extract second-limit samples from four-queue depletion trajectories.
+    """Extrait des échantillons de limites secondaires à partir de trajectoires d'épuisement à quatre files.
 
-    The returned shape mirrors the notebook's Ogata collector: ``q_same`` is the
-    second limit on the side that depleted, and ``q_opp`` is the second limit on
-    the opposite side.  Only trajectories that hit the rare event are used.
+    La forme retournée reflète le collecteur Ogata du notebook : ``q_same`` est la
+    limite secondaire du côté qui a été épuisé, et ``q_opp`` est la limite secondaire
+    du côté opposé. Seules les trajectoires qui atteignent l'événement rare sont utilisées.
     """
     q_plus2_when_plus1_zero = []
     q_plus2_when_neg1_zero = []
@@ -564,7 +564,7 @@ def run_fixed_level_conditional_q2(
     seed: int = 42,
     burn_in: float = 0.0,
 ) -> dict:
-    """Run FLS and extract conditional four-queue second-limit samples."""
+    """Exécute FLS et extrait des échantillons de limites secondaires conditionnelles à quatre files."""
     summary = run_fixed_level_splitting(
         simulator=simulator,
         problem=problem,
@@ -591,7 +591,7 @@ def run_ams_conditional_q2(
     seed: int = 42,
     burn_in: float = 0.0,
 ) -> dict:
-    """Run one AMS population and extract conditional second-limit samples."""
+    """Exécute une population AMS et extrait des échantillons de limites secondaires conditionnelles."""
     summary = run_ams(
         simulator=simulator,
         problem=problem,
@@ -625,7 +625,7 @@ def run_markovian_conditional_restart_splitting(
     queue_indices: Optional[list[int]] = None,
     reset_excitation: bool = False,
 ) -> dict:
-    """Run Markovian Conditional Restart Splitting and return a table summary."""
+    """Exécute le fractionnement par redémarrage conditionnel markovien et retourne un résumé."""
 
     from .restart_splitting import (
         METHOD_NAME,
@@ -698,7 +698,7 @@ def run_naive_boundary_mc_comparison(
     burn_in: float = 0.0,
     queue_indices: Optional[list[int]] = None,
 ) -> dict:
-    """Run naive Ogata boundary sampling with one continuation per boundary hit."""
+    """Exécute un échantillonnage de limite Ogata naïf avec une continuation par passage de limite."""
 
     from .restart_splitting import NAIVE_METHOD_NAME, run_naive_boundary_mc
     from .utils import Timer
@@ -739,7 +739,7 @@ def run_naive_boundary_mc_comparison(
 
 
 def compare_restart_results(results: list[dict]) -> "Any":
-    """Build a compact table for naive Ogata and restart-splitting summaries."""
+    """Construit un tableau compact pour les résumés Ogata naïfs et de fractionnement par redémarrage."""
 
     import pandas as pd
 
@@ -782,11 +782,11 @@ def extract_q_neg2_restart_observables(
     same_side_result: Any = None,
     opposite_side_result: Any = None,
 ) -> dict:
-    """Extract nb3 bid second-limit observables from restart results.
+    """Extrait les observables de limite secondaire nb3 bid à partir des résultats de redémarrage.
 
-    ``same_side_result`` should correspond to restarting from ``Q-1=1`` and
-    targeting ``Q-1=0``.  ``opposite_side_result`` should correspond to
-    restarting from ``Q+1=1`` and targeting ``Q+1=0`` while observing ``Q-2``.
+    ``same_side_result`` doit correspondre au redémarrage à partir de ``Q-1=1`` et
+    ciblant ``Q-1=0``. ``opposite_side_result`` doit correspondre au redémarrage à
+    partir de ``Q+1=1`` et ciblant ``Q+1=0`` tout en observant ``Q-2``.
     """
 
     same = _unwrap_restart_result(same_side_result)
@@ -819,7 +819,7 @@ def _q_neg2_success(result: Any) -> np.ndarray:
 
 
 def compare_estimators(results: list[dict]) -> "Any":
-    """Build a compact comparison table from estimator summary dictionaries."""
+    """Construit un tableau de comparaison compact à partir des dictionnaires de résumé d'estimateurs."""
     import pandas as pd
 
     rows = []
