@@ -18,6 +18,8 @@ from model import (
 from model.hawkes_4q import FourQueueParams
 from model.ogata import Checkpoint, FourQueueHawkesSimulator, Trajectory
 from model.rare_events import RareEventProblem
+from model.analysis import compare_estimators, run_ams_replications
+from model.analysis import extract_four_queue_depletion_samples
 
 
 class PoissonCountSimulator:
@@ -145,6 +147,78 @@ def test_fixed_level_splitting_reproducible_with_same_seed():
     second = FixedLevelSplitting(simulator, problem, **kwargs).run()
     assert first.probability_estimate == second.probability_estimate
     assert first.level_probabilities == second.level_probabilities
+
+
+def test_replicated_ams_summary_has_empirical_error_bar():
+    def target(state, time, metadata):
+        del time, metadata
+        return state[0] >= 4
+
+    def score(state, time, metadata):
+        del time, metadata
+        return min(float(state[0]) / 4.0, 1.0)
+
+    problem = RareEventProblem(
+        T=4.0,
+        initial_state=np.array([0]),
+        target_event=target,
+        score_function=score,
+        event_name="poisson_count_tail",
+    )
+    simulator = PoissonCountSimulator(rate=1.0)
+
+    summary = run_ams_replications(
+        simulator,
+        problem,
+        n_particles=60,
+        n_replications=3,
+        kill_fraction=0.1,
+        max_iterations=10,
+        seed=99,
+    )
+    table = compare_estimators([summary])
+
+    assert len(summary["replication_estimates"]) == 3
+    assert np.isfinite(summary["standard_error"])
+    assert table.loc[0, "n_replications"] == 3
+
+
+def test_four_queue_depletion_sample_extraction():
+    ask_hit = Trajectory(
+        times=np.array([0.0, 1.0]),
+        events=np.array([-1, 1]),
+        states=np.array([[5.0, 5.0, 5.0, 5.0], [0.0, 5.0, 8.0, 3.0]]),
+        intensities=None,
+        final_state=np.array([0.0, 5.0, 8.0, 3.0]),
+        hit=True,
+        hitting_time=1.0,
+        score_values=np.array([0.0, 1.0]),
+        score_max=1.0,
+        metadata={"which_hit": 1, "first_limit_hitting_time": 1.0},
+    )
+    bid_hit = Trajectory(
+        times=np.array([0.0, 1.0]),
+        events=np.array([-1, 3]),
+        states=np.array([[5.0, 5.0, 5.0, 5.0], [5.0, 0.0, 4.0, 9.0]]),
+        intensities=None,
+        final_state=np.array([5.0, 0.0, 4.0, 9.0]),
+        hit=True,
+        hitting_time=1.0,
+        score_values=np.array([0.0, 1.0]),
+        score_max=1.0,
+        metadata={"which_hit": -1, "first_limit_hitting_time": 1.0},
+    )
+
+    samples = extract_four_queue_depletion_samples([ask_hit, bid_hit])
+
+    np.testing.assert_array_equal(samples["q_plus2_when_plus1_zero"], np.array([8.0]))
+    np.testing.assert_array_equal(samples["q_same"], np.array([8.0, 9.0]))
+    np.testing.assert_array_equal(samples["q_opp"], np.array([3.0, 4.0]))
+    np.testing.assert_array_equal(samples["q_neg2_when_plus1_zero"], np.array([3.0]))
+    np.testing.assert_array_equal(samples["q_neg2_when_neg1_zero"], np.array([9.0]))
+    np.testing.assert_array_equal(samples["q_neg2_same"], np.array([9.0]))
+    np.testing.assert_array_equal(samples["q_neg2_opp"], np.array([3.0]))
+    assert samples["n_valid"] == 2
 
 
 def test_hawkes_checkpoint_preserves_excitation_state():

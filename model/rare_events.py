@@ -1,7 +1,8 @@
 """Rare-event targets and score functions for LOB simulations.
 
 Ogata thinning simulates sample paths.  The objects in this module define
-which event is rare and which progress score should guide splitting or AMS.
+which event is rare and which progress score or boundary rule should guide
+rare-event estimators.
 Scores should be monotone, or at least progress-like, along paths.  When a
 score is only a proxy, diagnostics should be read with extra care.
 """
@@ -261,6 +262,55 @@ def min_best_depletion_problem(T: float, q1_init: int, q_neg1_init: int) -> Rare
     )
 
 
+def first_limit_depletion_problem(
+    T: float,
+    q1_init: int,
+    q_neg1_init: int,
+    q2_init: int,
+    q_neg2_init: int,
+    side: Optional[int] = None,
+) -> RareEventProblem:
+    """Four-queue problem where one first limit depletes before ``T``.
+
+    ``side=None`` targets either ``Q+1`` or ``Q-1``.  ``side=1`` targets ask
+    depletion only, and ``side=-1`` targets bid depletion only.  The score is
+    still the normalized progress toward first-limit depletion, while ``Q+2``
+    and ``Q-2`` remain in the state so conditional second-limit observables can
+    be extracted from hit trajectories.
+    """
+    initial_state = np.array([q1_init, q_neg1_init, q2_init, q_neg2_init], dtype=float)
+    if side is None:
+        target_indices = [1, -1]
+        initial_queue = float(min(q1_init, q_neg1_init))
+        event_name = "first_limit_depletion"
+    else:
+        side = 1 if side >= 0 else -1
+        target_indices = [side]
+        initial_queue = float(q1_init if side == 1 else q_neg1_init)
+        event_name = "ask_first_limit_depletion" if side == 1 else "bid_first_limit_depletion"
+
+    metadata = {
+        "queue_indices": [1, -1, 2, -2],
+        "target_indices": target_indices,
+        "initial_queue": initial_queue,
+        "initial_state": initial_state,
+    }
+
+    def target(state: State, time: float, ctx: PathMetadata) -> bool:
+        del time
+        return any(queue_value(state, ctx, queue_index) <= 0 for queue_index in target_indices)
+
+    return RareEventProblem(
+        T=T,
+        initial_state=initial_state,
+        target_event=target,
+        score_function=distance_to_depletion_score,
+        event_name=event_name,
+        threshold=1.0,
+        metadata=metadata,
+    )
+
+
 def imbalance_crossing_problem(
     T: float,
     q1_init: int,
@@ -305,7 +355,7 @@ def second_limit_activation_problem(
 ) -> RareEventProblem:
     """First limit depletes and same-side second limit is active enough."""
     warnings.warn(
-        "second_limit_score is progress-like but not strictly monotone because Q2 can both increase and decrease",
+        "second_limit_score is progress-like but not strictly monotone because the same-side second limit can both increase and decrease",
         RuntimeWarning,
         stacklevel=2,
     )
