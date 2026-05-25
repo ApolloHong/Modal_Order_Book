@@ -1,29 +1,27 @@
 """
-Four-Queue Hawkes LOB System (I=2).
+Système LOB (Limit Order Book) à quatre files d'attente de type Hawkes (I=2).
 
-Implements Section 1.2.4 (corrected signs) and Section 1.2.5 from MODAL v4.
+Implémente la section 1.2.4 (signes corrigés) et la section 1.2.5 du MODAL v4.
 
-Four queues: N^{+1}, N^{+2} (ask), N^{-1}, N^{-2} (bid).
-Sign convention:
-    positive index = ask side, negative index = bid side.
+Quatre files : N^{+1}, N^{+2} (ask), N^{-1}, N^{-2} (bid).
 
-First limits (i ∈ {+1, -1}) — Hawkes dynamics (eq. 3, corrected signs):
-    λ^{i,+} = μ^{i,+}                                          (constant)
-    λ^{i,-} = μ^{i,-}  - ∫ φ(t-s)(dN^{i,+} - dN^{i,-})        (self)
-                        + ∫ φ(t-s)(dN^{-i,+} + dN^{-i,-})      (cross)
+Premières limites (i ∈ {+1, -1}) — dynamique de Hawkes (éq. 3, signes corrigés) :
+    λ^{i,+} = μ^{i,+}                                      (constante)
+    λ^{i,-} = μ^{i,-}  - ∫ φ(t-s)(dN^{i,+} - dN^{i,-})     (propre)
+                      + ∫ φ(t-s)(dN^{-i,+} + dN^{-i,-})    (croisée)
 
-    Corrected interpretation (v4):
-      Own additions    → DECREASE removal rate (inertia: growing queue keeps growing)
-      Own removals     → INCREASE removal rate (self-excitation of removals)
-      Opposite adds    → INCREASE removal rate (opposite grows → I feel pressure)
-      Opposite removals→ INCREASE removal rate (opposite shrinks → contagion/panic)
+    Interprétation :
+      Ajouts propres      → DIMINUENT le taux de retrait (inertie : une file qui grandit continue de grandir)
+      Retraits propres    → AUGMENTENT le taux de retrait (auto-excitation des retraits)
+      Ajouts opposés      → AUGMENTENT le taux de retrait (l'opposé grandit → je ressens une pression)
+      Retraits opposés    → AUGMENTENT le taux de retrait (l'opposé rétrécit → contagion/panique)
 
-Second limits (j ∈ {+2, -2}):
-    Q1.2.5.1: constant λ^{j,+} and λ^{j,-}
-    Q1.2.5.2: λ^{-2,+}(t) = μ^{-2,+} + ∫ a·e^{-b(t-s)} dN^{-1,-}   (eq. 4)
-              λ^{+2,+}(t) = μ^{+2,+} + ∫ a·e^{-b(t-s)} dN^{+1,-}
-              i.e., first limit removals EXCITE second limit additions
-              ("rush to queue" when first limit is being depleted)
+Secondes limites (j ∈ {+2, -2}) :
+    Q1.2.5.1 : λ^{j,+} et λ^{j,-} constants
+    Q1.2.5.2 : λ^{-2,+}(t) = μ^{-2,+} + ∫ a·e^{-b(t-s)} dN^{-1,-}   (éq. 4)
+               λ^{+2,+}(t) = μ^{+2,+} + ∫ a·e^{-b(t-s)} dN^{+1,-}
+               c.-à-d., les retraits de la première limite EXCITENT les ajouts de la seconde limite
+               ("ruée vers la file" quand la première limite est épuisée)
 """
 
 import numpy as np
@@ -33,7 +31,7 @@ from typing import Optional
 
 @dataclass
 class FourQueueResult:
-    """Result of a 4-queue Hawkes simulation."""
+    """Résultat d'une simulation de Hawkes à 4 files."""
     times: np.ndarray
     # Queue sizes: q[i] for i in {+1, -1, +2, -2}
     q_paths: dict[int, np.ndarray]
@@ -49,26 +47,26 @@ class FourQueueResult:
 
 @dataclass
 class FourQueueParams:
-    """Parameters for the 4-queue system."""
-    # First limits: birth (constant) and death (Hawkes)
-    mu_plus_1: float = 1.2      # λ^{±1,+} (constant addition rate)
-    mu_minus_1: float = 1.5     # μ^{±1,-} (baseline removal rate)
-    alpha: float = 0.3          # Hawkes kernel amplitude
-    beta: float = 0.5           # Hawkes kernel decay rate
+    """Paramètres pour le système à 4 files."""
+    # Premières limites : naissance (constante) et décès (Hawkes)
+    mu_plus_1: float = 1.2      # λ^{±1,+} (taux d'ajout constant)
+    mu_minus_1: float = 1.5     # μ^{±1,-} (taux de retrait de base)
+    alpha: float = 0.3          # amplitude du noyau de Hawkes
+    beta: float = 0.5           # taux de décroissance de Hawkes
 
-    # Second limits: birth and death
-    mu_plus_2: float = 0.8      # λ^{±2,+} baseline addition rate
-    mu_minus_2: float = 0.6     # λ^{±2,-} (constant removal rate)
+    # Secondes limites : naissance et décès
+    mu_plus_2: float = 0.8      # λ^{±2,+} taux d'ajout de base
+    mu_minus_2: float = 0.6     # λ^{±2,-} (taux de retrait constant)
 
-    # Second limit Hawkes excitation (eq. 4): removals of 1st → additions of 2nd
-    a_cross: float = 0.0        # 0 = constant (Q1.2.5.1), >0 = excited (Q1.2.5.2)
-    b_cross: float = 0.5        # decay rate for cross-excitation
+    # Excitation Hawkes de la seconde limite (éq. 4) : retraits de la 1ère → ajouts de la 2nde
+    a_cross: float = 0.0        # 0 = constant (Q1.2.5.1), >0 = excité (Q1.2.5.2)
+    b_cross: float = 0.5        # taux de décroissance pour l'excitation croisée
 
-    # Initial conditions
-    q1_init: int = 10       # Q^{+1}: ask first limit
-    q_neg1_init: int = 10   # Q^{-1}: bid first limit
-    q2_init: int = 5        # Q^{+2}: ask second limit
-    q_neg2_init: int = 5    # Q^{-2}: bid second limit
+    # Conditions initiales
+    q1_init: int = 10       # Q^{+1} : ask première limite
+    q_neg1_init: int = 10   # Q^{-1} : bid première limite
+    q2_init: int = 5        # Q^{+2} : ask seconde limite
+    q_neg2_init: int = 5    # Q^{-2} : bid seconde limite
 
     @property
     def ratio(self):
@@ -76,13 +74,13 @@ class FourQueueParams:
 
     @property
     def stationary_lam_minus(self):
-        """Stationary mean of λ^{i,-} under the corrected v4 convention.
+        """Moyenne stationnaire de λ^{i,-}.
 
-        With r = alpha / beta, the first-limit mean removal intensity solves
+        Avec r = alpha / beta, la moyenne de l'intensité de retrait de la première limite résout
 
             (1 - r) m^- = mu^- - r mu^+,
 
-        hence
+        d'où
 
             m^- = (mu^- - r mu^+) / (1 - r).
         """
@@ -100,21 +98,21 @@ def simulate_4queue(
     record_every: int = 1,
 ) -> FourQueueResult:
     """
-    Simulate the 4-queue Hawkes LOB system.
+    Simule le système LOB à 4 files de Hawkes.
 
-    Uses Ogata's thinning algorithm with the corrected v4 sign convention.
+    Utilise l'algorithme de thinning (amincissement) d'Ogata.
 
-    The excitation state H_i tracks the Hawkes contribution to λ^{i,-}:
-        H_{+1} updates:
-            Own add (N^{+1,+}):     H_{+1} -= α   (own adds decrease removal)
-            Own remove (N^{+1,-}):  H_{+1} += α   (own removals increase removal)
-            Opp add (N^{-1,+}):     H_{+1} += α   (opp adds increase my removal)
-            Opp remove (N^{-1,-}):  H_{+1} += α   (opp removals increase my removal)
-        Symmetric for H_{-1}.
+    L'état d'excitation H_i suit la contribution Hawkes à λ^{i,-} :
+        Mises à jour de H_{+1} :
+            Ajout propre (N^{+1,+}) :    H_{+1} -= α   (les ajouts propres diminuent le retrait)
+            Retrait propre (N^{+1,-}) :  H_{+1} += α   (les retraits propres augmentent le retrait)
+            Ajout opposé (N^{-1,+}) :    H_{+1} += α   (les ajouts opposés augmentent mon retrait)
+            Retrait opposé (N^{-1,-}) :  H_{+1} += α   (les retraits opposés augmentent mon retrait)
+        Symétrique pour H_{-1}.
 
-    The excitation state G_j tracks Hawkes contribution to λ^{j,+} (2nd limit):
-        G_{+2} updates when N^{+1,-} fires: G_{+2} += a_cross
-        G_{-2} updates when N^{-1,-} fires: G_{-2} += a_cross
+    L'état d'excitation G_j suit la contribution Hawkes à λ^{j,+} (2ème limite) :
+        G_{+2} est mis à jour quand N^{+1,-} se produit : G_{+2} += a_cross
+        G_{-2} est mis à jour quand N^{-1,-} se produit : G_{-2} += a_cross
     """
     if rng is None:
         rng = np.random.default_rng()
@@ -123,11 +121,11 @@ def simulate_4queue(
     q = {1: p.q1_init, -1: p.q_neg1_init, 2: p.q2_init, -2: p.q_neg2_init}
     t = 0.0
 
-    # Hawkes excitation states
+    # États d'excitation de Hawkes
     H = {1: 0.0, -1: 0.0}     # for λ^{±1,-}
     G = {2: 0.0, -2: 0.0}     # for λ^{±2,+}
 
-    # Recording
+    # Enregistrement
     times_list = [0.0]
     q_rec = {i: [q[i]] for i in [1, -1, 2, -2]}
     lm_rec = {1: [p.mu_minus_1], -1: [p.mu_minus_1]}
@@ -140,26 +138,26 @@ def simulate_4queue(
     which_hit = 0
 
     while t < T_max:
-        # ── Current intensities ──────────────────────────────────
-        # First limits: removal rates (Hawkes)
+        # ── Intensités actuelles ──────────────────────────────────
+        # Premières limites : taux de retrait (Hawkes)
         lam_m1 = max(0.01, p.mu_minus_1 + H[1]) if q[1] > 0 else 0.0
         lam_mn1 = max(0.01, p.mu_minus_1 + H[-1]) if q[-1] > 0 else 0.0
 
-        # First limits: addition rates (constant)
+        # Premières limites : taux d'ajout (constante)
         lam_p1 = p.mu_plus_1 if q[1] >= 0 else 0.0
         lam_pn1 = p.mu_plus_1 if q[-1] >= 0 else 0.0
 
-        # Second limits: addition rates (possibly Hawkes-excited)
+        # Secondes limites : taux d'ajout (possiblement excités par Hawkes)
         lam_p2 = max(0.01, p.mu_plus_2 + G[2])
         lam_pn2 = max(0.01, p.mu_plus_2 + G[-2])
 
-        # Second limits: removal rates (constant)
+        # Secondes limites : taux de retrait (constante)
         lam_m2 = p.mu_minus_2 if q[2] > 0 else 0.0
         lam_mn2 = p.mu_minus_2 if q[-2] > 0 else 0.0
 
-        # ── Thinning upper bound ─────────────────────────────────
-        # H decays toward 0, G decays toward 0
-        # Upper bound: use max(current, baseline)
+        # ── Borne supérieure pour le thinning ────────────────────
+        # H décroît vers 0, G décroît vers 0
+        # Borne supérieure : utiliser max(actuel, base)
         ub_m1 = p.mu_minus_1 + max(H[1], 0) if q[1] > 0 else 0.0
         ub_mn1 = p.mu_minus_1 + max(H[-1], 0) if q[-1] > 0 else 0.0
         ub_p2 = p.mu_plus_2 + max(G[2], 0)
@@ -168,13 +166,13 @@ def simulate_4queue(
         lam_max = (lam_p1 + ub_m1 + lam_pn1 + ub_mn1 +
                    ub_p2 + lam_m2 + ub_pn2 + lam_mn2 + 0.1)
 
-        # ── Draw candidate ───────────────────────────────────────
+        # ── Tirage du candidat ───────────────────────────────────
         dt = rng.exponential(1.0 / lam_max)
         t += dt
         if t > T_max:
             break
 
-        # Decay all excitation states
+        # Décroissance de tous les états d'excitation
         decay = np.exp(-p.beta * dt)
         H[1] *= decay
         H[-1] *= decay
@@ -183,7 +181,7 @@ def simulate_4queue(
             G[2] *= decay_cross
             G[-2] *= decay_cross
 
-        # Recompute after decay
+        # Recalcul après décroissance
         lam_m1 = max(0.01, p.mu_minus_1 + H[1]) if q[1] > 0 else 0.0
         lam_mn1 = max(0.01, p.mu_minus_1 + H[-1]) if q[-1] > 0 else 0.0
         lam_p2 = max(0.01, p.mu_plus_2 + G[2])
@@ -194,52 +192,52 @@ def simulate_4queue(
         total = (lam_p1 + lam_m1 + lam_pn1 + lam_mn1 +
                  lam_p2 + lam_m2 + lam_pn2 + lam_mn2)
 
-        # Thinning acceptance
+        # Acceptation du rejet
         if rng.random() > total / lam_max:
             continue
 
-        # ── Select event ─────────────────────────────────────────
-        # 8 possible events:
+        # ── Sélection de l'événement ─────────────────────────────
+        # 8 événements possibles :
         rates = [
-            lam_p1,    # 0: Q+1 add
-            lam_m1,    # 1: Q+1 remove
-            lam_pn1,   # 2: Q-1 add
-            lam_mn1,   # 3: Q-1 remove
-            lam_p2,    # 4: Q+2 add
-            lam_m2,    # 5: Q+2 remove
-            lam_pn2,   # 6: Q-2 add
-            lam_mn2,   # 7: Q-2 remove
+            lam_p1,    # 0 : Q+1 ajout
+            lam_m1,    # 1 : Q+1 retrait
+            lam_pn1,   # 2 : Q-1 ajout
+            lam_mn1,   # 3 : Q-1 retrait
+            lam_p2,    # 4 : Q+2 ajout
+            lam_m2,    # 5 : Q+2 retrait
+            lam_pn2,   # 6 : Q-2 ajout
+            lam_mn2,   # 7 : Q-2 retrait
         ]
         rates = np.array(rates)
         probs = rates / rates.sum()
         event_idx = rng.choice(8, p=probs)
 
-        # ── Apply event + update Hawkes states ───────────────────
-        if event_idx == 0:    # Q+1 add (N^{+1,+})
+        # ── Application de l'événement + mise à jour des états Hawkes ──
+        if event_idx == 0:    # Q+1 ajout (N^{+1,+})
             q[1] += 1
-            H[1] -= p.alpha     # own add → decrease own removal
-            H[-1] += p.alpha    # opp sees my add → increase opp removal
-        elif event_idx == 1:  # Q+1 remove (N^{+1,-})
+            H[1] -= p.alpha     # ajout propre → diminue retrait propre
+            H[-1] += p.alpha    # l'opposé voit mon ajout → augmente retrait opposé
+        elif event_idx == 1:  # Q+1 retrait (N^{+1,-})
             q[1] = max(0, q[1] - 1)
-            H[1] += p.alpha     # own remove → increase own removal
-            H[-1] += p.alpha    # opp sees my remove → increase opp removal
-            G[2] += p.a_cross   # first limit removal → excite second limit addition
-        elif event_idx == 2:  # Q-1 add (N^{-1,+})
+            H[1] += p.alpha     # retrait propre → augmente retrait propre
+            H[-1] += p.alpha    # l'opposé voit mon retrait → augmente retrait opposé
+            G[2] += p.a_cross   # retrait 1ère limite → excite ajout 2nde limite
+        elif event_idx == 2:  # Q-1 ajout (N^{-1,+})
             q[-1] += 1
             H[-1] -= p.alpha
             H[1] += p.alpha
-        elif event_idx == 3:  # Q-1 remove (N^{-1,-})
+        elif event_idx == 3:  # Q-1 retrait (N^{-1,-})
             q[-1] = max(0, q[-1] - 1)
             H[-1] += p.alpha
             H[1] += p.alpha
             G[-2] += p.a_cross
-        elif event_idx == 4:  # Q+2 add
+        elif event_idx == 4:  # Q+2 ajout
             q[2] += 1
-        elif event_idx == 5:  # Q+2 remove
+        elif event_idx == 5:  # Q+2 retrait
             q[2] = max(0, q[2] - 1)
-        elif event_idx == 6:  # Q-2 add
+        elif event_idx == 6:  # Q-2 ajout
             q[-2] += 1
-        elif event_idx == 7:  # Q-2 remove
+        elif event_idx == 7:  # Q-2 retrait
             q[-2] = max(0, q[-2] - 1)
 
         n_events += 1
@@ -250,7 +248,7 @@ def simulate_4queue(
             hitting_time = t
             which_hit = 1 if q[1] <= 0 else -1
 
-        # Record
+        # Enregistrement
         if evt_count % record_every == 0:
             times_list.append(t)
             for i in [1, -1, 2, -2]:
@@ -260,7 +258,7 @@ def simulate_4queue(
             lp2_rec[2].append(max(0.01, p.mu_plus_2 + G[2]))
             lp2_rec[-2].append(max(0.01, p.mu_plus_2 + G[-2]))
 
-        # Check stopping
+        # Vérification de l'arrêt
         if stop_at_first_limit_zero and hit_zero:
             times_list.append(t)
             for i in [1, -1, 2, -2]:
@@ -289,7 +287,7 @@ def simulate_4queue(
 
 
 # ====================================================================== #
-#  Q1.2.5: conditional distributions at first-limit depletion
+#  Q1.2.5 : distributions conditionnelles à l'épuisement de la 1ère limite
 # ====================================================================== #
 
 def conditional_q2_at_depletion(
@@ -299,25 +297,25 @@ def conditional_q2_at_depletion(
     seed: int = 42,
 ) -> dict:
     """
-    Collect the distribution of Q^{+2} and Q^{-2} at the moment
-    when the first queue to hit zero does so.
+    Collecte la distribution de Q^{+2} et Q^{-2} au moment
+    où la première file à atteindre zéro le fait.
 
-    Returns dict with:
-        'q2_when_same_depleted': Q^{+2} when Q^{+1}=0 (or Q^{-2} when Q^{-1}=0)
-        'q2_when_opp_depleted':  Q^{+2} when Q^{-1}=0 (or Q^{-2} when Q^{+1}=0)
+    Retourne un dictionnaire avec :
+        'q2_when_same_depleted' : Q^{+2} quand Q^{+1}=0 (ou Q^{-2} quand Q^{-1}=0)
+        'q2_when_opp_depleted'  : Q^{+2} quand Q^{-1}=0 (ou Q^{-2} quand Q^{+1}=0)
     """
     rng = np.random.default_rng(seed)
-    q2_same = []   # second limit on the SAME side as depletion
-    q2_opp = []    # second limit on the OPPOSITE side
+    q2_same = []   # seconde limite du MÊME côté que l'épuisement
+    q2_opp = []    # seconde limite du côté OPPOSÉ
 
     for _ in range(n_runs):
         res = simulate_4queue(params, T_max, rng, stop_at_first_limit_zero=True,
                               record_every=10)
         if not res.hit_zero:
             continue
-        w = res.which_hit  # +1 or -1
-        # Same side second limit
-        same_2 = 2 * np.sign(w)   # +2 if +1 hit, -2 if -1 hit
+        w = res.which_hit  # +1 ou -1
+        # Seconde limite du même côté
+        same_2 = 2 * np.sign(w)   # +2 si +1 a atteint, -2 si -1 a atteint
         opp_2 = -same_2
 
         q2_same.append(res.q_paths[int(same_2)][-1])
@@ -331,7 +329,7 @@ def conditional_q2_at_depletion(
 
 
 # ====================================================================== #
-#  Q1.2.4.5: four-model comparison
+#  Q1.2.4.5 : comparaison des quatre modèles
 # ====================================================================== #
 
 def four_model_comparison(
@@ -345,13 +343,13 @@ def four_model_comparison(
     seed: int = 42,
 ) -> dict:
     """
-    Compare hitting times across four models (Q1.2.4.5):
-        1. Single Poisson queue
-        2. Two independent Poisson queues (min)
-        3. Single Hawkes queue
-        4. Two coupled Hawkes queues
+    Compare les temps d'atteinte (hitting times) entre quatre modèles (Q1.2.4.5) :
+        1. Une seule file de Poisson
+        2. Deux files de Poisson indépendantes (min)
+        3. Une seule file de Hawkes
+        4. Deux files de Hawkes couplées
 
-    Expected ordering: E[T_coupled] < E[T_single_H] < E[T_two_P] < E[T_single_P]
+    Ordre attendu : E[T_couplé] < E[T_seule_H] < E[T_deux_P] < E[T_seule_P]
     """
     from model.hawkes import simulate_hawkes_queue, simulate_coupled_hawkes
     from model.hitting_times import simulate_until_hit_zero
@@ -359,7 +357,7 @@ def four_model_comparison(
     rng = np.random.default_rng(seed)
     results = {}
 
-    # 1. Single Poisson
+    # 1. Poisson simple
     ht = []
     for _ in range(n_runs):
         q, t = q_init, 0.0
@@ -370,7 +368,7 @@ def four_model_comparison(
         ht.append(t if q <= 0 else np.nan)
     results['single_poisson'] = np.array([x for x in ht if not np.isnan(x)])
 
-    # 2. Two independent Poisson
+    # 2. Deux Poissons indépendants
     ht = []
     for _ in range(n_runs):
         r = simulate_until_hit_zero(q_init, q_init, mu_plus, mu_minus,
@@ -378,7 +376,7 @@ def four_model_comparison(
         ht.append(r.hitting_time)
     results['two_poisson'] = np.array(ht)
 
-    # 3. Single Hawkes
+    # 3.  Hawkes simple
     ht = []
     for _ in range(n_runs):
         r = simulate_hawkes_queue(q_init, mu_plus, mu_minus, alpha, beta,
@@ -387,7 +385,7 @@ def four_model_comparison(
             ht.append(r.hitting_time)
     results['single_hawkes'] = np.array(ht)
 
-    # 4. Two coupled Hawkes
+    # 4.  Hawkes couplées
     ht = []
     for _ in range(n_runs):
         r = simulate_coupled_hawkes(q_init, q_init, mu_plus, mu_minus,
@@ -396,7 +394,7 @@ def four_model_comparison(
             ht.append(r.hitting_time)
     results['two_hawkes'] = np.array(ht)
 
-    # Summary
+    # résumé
     summary = {}
     for name, arr in results.items():
         if len(arr) > 0:
