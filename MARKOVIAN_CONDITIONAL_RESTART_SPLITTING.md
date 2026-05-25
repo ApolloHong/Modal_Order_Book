@@ -77,7 +77,7 @@ Therefore the exported vector is:
 
 There is no duplicated cross component. `G[0]` is exposed as
 `S^{+1,- -> +2,+}` for the ask side, and `G[1]` is exposed as
-`S^{-1,- -> -2,-}` for the bid side in the notebook notation.
+`S^{-1,- -> -2,+}` for the bid side in the notebook notation.
 
 ## Boundary Law
 

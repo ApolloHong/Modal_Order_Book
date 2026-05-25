@@ -139,7 +139,7 @@ The notebook uses the following interpretation:
 For the four-queue Hawkes model, the notebook-facing excitation vector is:
 
 ```text
-S = [S^{+1,-}, S^{-1,-}, S^{+1,- -> +2,+}, S^{-1,- -> -2,-}]
+S = [S^{+1,-}, S^{-1,-}, S^{+1,- -> +2,+}, S^{-1,- -> -2,+}]
 ```
 
 In the current implementation this is extracted from the checkpoint as:

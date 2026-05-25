@@ -237,13 +237,13 @@ def extract_excitation_vector(
             "S^{+1,-}",
             "S^{-1,-}",
             "S^{+1,- -> +2,+}",
-            "S^{-1,- -> -2,-}",
+            "S^{-1,- -> -2,+}",
         ]
         diagnostics["sign_convention"] = "positive index = ask, negative index = bid"
         diagnostics["queue_state_order"] = [1, -1, 2, -2]
         diagnostics["cross_component_note"] = (
             "G[0] is the ask-side cross excitation Q+1 removal -> Q+2 addition; "
-            "G[1] is the bid-side cross excitation exported as S^{-1,- -> -2,-}."
+            "G[1] is the bid-side cross excitation exported as S^{-1,- -> -2,+}."
         )
         return excitation, component_names, diagnostics
 
@@ -1212,7 +1212,7 @@ def _reconstruct_excitation_from_intensity(
                 ],
                 dtype=float,
             ),
-            ["S^{+1,-}", "S^{-1,-}", "S^{+1,- -> +2,+}", "S^{-1,- -> -2,-}"],
+            ["S^{+1,-}", "S^{-1,-}", "S^{+1,- -> +2,+}", "S^{-1,- -> -2,+}"],
         )
     return None
 

@@ -109,8 +109,8 @@ def test_four_queue_S_maps_ask_and_bid_cross_components_without_duplication():
 
     np.testing.assert_allclose(S, np.array([0.2, 0.4, 0.6, 0.8]))
     assert names[-2] == "S^{+1,- -> +2,+}"
-    assert names[-1] == "S^{-1,- -> -2,-}"
-    assert "S^{-1,- -> -2,-}" in diagnostics["cross_component_note"]
+    assert names[-1] == "S^{-1,- -> -2,+}"
+    assert "S^{-1,- -> -2,+}" in diagnostics["cross_component_note"]
 
 
 def test_restart_from_boundary_preserves_or_resets_excitation_explicitly():
