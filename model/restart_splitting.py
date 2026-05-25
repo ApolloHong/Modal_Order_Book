@@ -424,9 +424,18 @@ def restart_from_boundary_distribution(
     record_path: bool = False,
     observable_fn: Optional[ObservableFunction] = None,
     reset_excitation: bool = False,
+    post_success_horizon: float = 0.0,
     method_name: str = METHOD_NAME,
 ) -> RestartSplittingResult:
-    """Restart local simulations from empirical boundary Markov states."""
+    """Restart local simulations from empirical boundary Markov states.
+
+    ``post_success_horizon`` is optional and keeps the original estimator
+    unchanged when set to zero.  When positive, successful local depletion paths
+    are continued for an additional window before recording post-hit second-limit
+    observables.  This is useful when the Hawkes cross-excitation jump occurs at
+    the depletion event itself and needs time to materialize as second-limit
+    queue additions.
+    """
 
     if isinstance(checkpoints, BoundarySample):
         checkpoint_list = checkpoints.checkpoints
@@ -440,6 +449,8 @@ def restart_from_boundary_distribution(
         raise ValueError("n_restarts must be positive")
     if horizon_local <= 0:
         raise ValueError("horizon_local must be positive")
+    if post_success_horizon < 0:
+        raise ValueError("post_success_horizon must be nonnegative")
     if not sample_with_replacement and n_restarts > len(checkpoint_list):
         raise ValueError("n_restarts cannot exceed checkpoint count without replacement")
 
@@ -458,13 +469,24 @@ def restart_from_boundary_distribution(
     hitting_times: list[float] = []
     final_queues: list[np.ndarray] = []
     start_queues: list[np.ndarray] = []
+    observed_queues: list[np.ndarray] = []
     start_S: list[np.ndarray] = []
     end_S: list[np.ndarray] = []
+    observed_end_S: list[np.ndarray] = []
+    q_neg2_start_values: list[float] = []
     q_neg2_values: list[float] = []
     q_neg2_success_values: list[float] = []
+    q_neg2_increment_values: list[float] = []
+    q_neg2_success_start_values: list[float] = []
+    q_neg2_success_increment_values: list[float] = []
+    q_neg2_success_post_values: list[float] = []
+    q_neg2_success_post_increment_values: list[float] = []
+    post_success_times: list[float] = []
     user_observables: list[dict[str, Any]] = []
     total_events = 0
     total_candidates = 0
+    post_success_events = 0
+    post_success_candidates = 0
 
     with Timer() as timer:
         for idx in selected:
@@ -511,6 +533,58 @@ def restart_from_boundary_distribution(
             recovery = bool(recovery_fn(final_state, final_time, context)) and not success
             timeout = not success and not recovery
             elapsed_local = max(0.0, final_time - start_t)
+            end_state = (
+                checkpoint_to_markov_state(trajectory.checkpoints[-1], simulator=simulator)
+                if trajectory.checkpoints
+                else state
+            )
+
+            observed_state = final_state.copy()
+            observed_time = final_time
+            observed_state_markov = end_state.copy()
+            post_elapsed = 0.0
+            if success and post_success_horizon > 0:
+                success_checkpoint = (
+                    trajectory.checkpoints[-1].copy()
+                    if trajectory.checkpoints
+                    else markov_state_to_checkpoint(end_state)
+                )
+
+                def never_stop(x: np.ndarray, time: float, ctx: dict[str, Any]) -> bool:
+                    del x, time, ctx
+                    return False
+
+                def zero_score(x: np.ndarray, time: float, ctx: dict[str, Any]) -> float:
+                    del x, time, ctx
+                    return 0.0
+
+                post_problem = RareEventProblem(
+                    T=final_time + float(post_success_horizon),
+                    initial_state=final_state.copy(),
+                    target_event=never_stop,
+                    score_function=zero_score,
+                    event_name="post_success_second_limit_observation",
+                    threshold=1.0,
+                    metadata=start_meta,
+                )
+                post_trajectory = simulator.continue_from_checkpoint(
+                    success_checkpoint,
+                    post_problem,
+                    rng=stream.next(),
+                    record_path=record_path,
+                )
+                observed_state = np.asarray(post_trajectory.final_state, dtype=float)
+                observed_time = final_time + float(post_success_horizon)
+                observed_state_markov = (
+                    checkpoint_to_markov_state(post_trajectory.checkpoints[-1], simulator=simulator)
+                    if post_trajectory.checkpoints
+                    else end_state
+                )
+                post_elapsed = max(0.0, observed_time - final_time)
+                post_success_events += post_trajectory.n_events
+                post_success_candidates += post_trajectory.n_candidates
+                total_events += post_trajectory.n_events
+                total_candidates += post_trajectory.n_candidates
 
             successes.append(success)
             recoveries.append(recovery)
@@ -521,20 +595,29 @@ def restart_from_boundary_distribution(
                 hitting_times.append(elapsed_local)
             final_queues.append(final_state.copy())
             start_queues.append(state.queues.copy())
+            observed_queues.append(observed_state.copy())
             start_S.append(state.excitation.copy())
-            end_state = (
-                checkpoint_to_markov_state(trajectory.checkpoints[-1], simulator=simulator)
-                if trajectory.checkpoints
-                else state
-            )
             end_S.append(end_state.excitation.copy())
+            observed_end_S.append(observed_state_markov.excitation.copy())
+            if success and post_success_horizon > 0:
+                post_success_times.append(post_elapsed)
             total_events += trajectory.n_events
             total_candidates += trajectory.n_candidates
             if len(final_state) >= 4:
+                q_neg2_start = float(state.queues[3])
                 q_neg2 = float(final_state[3])
+                q_neg2_increment = q_neg2 - q_neg2_start
+                q_neg2_start_values.append(q_neg2_start)
                 q_neg2_values.append(q_neg2)
+                q_neg2_increment_values.append(q_neg2_increment)
                 if success:
+                    q_neg2_success_start_values.append(q_neg2_start)
                     q_neg2_success_values.append(q_neg2)
+                    q_neg2_success_increment_values.append(q_neg2_increment)
+                    if post_success_horizon > 0 and len(observed_state) >= 4:
+                        q_neg2_post = float(observed_state[3])
+                        q_neg2_success_post_values.append(q_neg2_post)
+                        q_neg2_success_post_increment_values.append(q_neg2_post - q_neg2_start)
             if observable_fn is not None:
                 user_observables.append(observable_fn(final_state, final_time, context))
 
@@ -556,15 +639,28 @@ def restart_from_boundary_distribution(
         "local_times": np.asarray(local_times, dtype=float),
         "final_queues": np.vstack(final_queues) if final_queues else np.empty((0, 0)),
         "start_queues": np.vstack(start_queues) if start_queues else np.empty((0, 0)),
+        "observed_queues": np.vstack(observed_queues) if observed_queues else np.empty((0, 0)),
         "start_S": _stack_or_empty(start_S),
         "end_S": _stack_or_empty(end_S),
+        "observed_end_S": _stack_or_empty(observed_end_S),
         "sampled_checkpoint_indices": selected_arr,
         "checkpoint_usage_frequency": usage_frequency,
         "user_observables": user_observables,
     }
     if q_neg2_values:
+        observables["q_neg2_start"] = np.asarray(q_neg2_start_values, dtype=float)
         observables["q_neg2"] = np.asarray(q_neg2_values, dtype=float)
+        observables["q_neg2_increment"] = np.asarray(q_neg2_increment_values, dtype=float)
+        observables["q_neg2_success_start"] = np.asarray(q_neg2_success_start_values, dtype=float)
         observables["q_neg2_success"] = np.asarray(q_neg2_success_values, dtype=float)
+        observables["q_neg2_success_increment"] = np.asarray(q_neg2_success_increment_values, dtype=float)
+    if q_neg2_success_post_values:
+        observables["q_neg2_success_post"] = np.asarray(q_neg2_success_post_values, dtype=float)
+        observables["q_neg2_success_post_increment"] = np.asarray(
+            q_neg2_success_post_increment_values,
+            dtype=float,
+        )
+        observables["post_success_times"] = np.asarray(post_success_times, dtype=float)
 
     return RestartSplittingResult(
         method_name=method_name,
@@ -582,6 +678,10 @@ def restart_from_boundary_distribution(
             "sample_with_replacement": bool(sample_with_replacement),
             "reset_excitation": bool(reset_excitation),
             "horizon_local": float(horizon_local),
+            "post_success_horizon": float(post_success_horizon),
+            "n_post_success_observations": int(len(q_neg2_success_post_values)),
+            "post_success_observation_events": int(post_success_events),
+            "post_success_observation_candidates": int(post_success_candidates),
             "n_events": int(total_events),
             "n_candidates": int(total_candidates),
             "acceptance_candidate_ratio": (

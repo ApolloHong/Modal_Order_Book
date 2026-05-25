@@ -1,10 +1,7 @@
 # MODAL Order Book
 
-Simulation and rare-event estimation tools for a MODAL course project on limit
-order book dynamics.
-
-The project models queue dynamics with independent birth-death queues and
-Hawkes-type excitation, then compares:
+Simulation and rare-event estimation tools for a MODAL course project on limit order book dynamics. This project is conducted by **Lizhan Hong** and **Tom Zhang** under the supervision of Professor **Charles-Albert Lehalle**.
+The project models queue dynamics with independent birth-death queues and Hawkes-type excitation, then compares naive Monte Carlo using Ogata thinning and Markovian Conditional Restart Splitting.
 
 1. naive Monte Carlo using Ogata thinning;
 2. **Markovian Conditional Restart Splitting**.
@@ -15,8 +12,6 @@ The current codebase focuses on the models used in the final notebooks:
 - `nb2_124_files_hawkes_couplees.ipynb`
 - `nb3_125_deuxieme_limite.ipynb`
 
-The older generic Queue-Reactive framework and exploratory QR notebooks were
-removed because they were not used by the final workflow.
 
 ## Repository Layout
 
@@ -26,7 +21,6 @@ MODAL_ORDER_BOOK/
 │   ├── __init__.py
 │   ├── events.py
 │   ├── lob.py
-│   ├── hawkes/              # Lowercase Hawkes implementation
 │   ├── Hawkes.py            # Compatibility wrapper for old uppercase imports
 │   ├── hawkes_4q.py         # Four-queue Hawkes model for second-limit studies
 │   ├── hitting_times.py     # Independent Poisson birth-death hitting times
