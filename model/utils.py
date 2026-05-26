@@ -1,4 +1,4 @@
-"""Small utilities for reproducible rare-event experiments."""
+"""Petits utilitaires pour des expériences reproductibles d'événements rares."""
 
 from __future__ import annotations
 
@@ -11,10 +11,10 @@ import numpy as np
 
 
 def ensure_rng(rng: Optional[np.random.Generator | int] = None) -> np.random.Generator:
-    """Return an explicit ``np.random.Generator``.
+    """Renvoie un objet ``np.random.Generator`` explicite.
 
-    Passing generators through the call stack avoids hidden global RNG state.
-    Integers are accepted as convenience seeds.
+    Passer les générateurs à travers la pile d'appels permet d'éviter l'utilisation
+    d'un état global caché (RNG). Les entiers sont acceptés comme graines (seeds) de courtoisie.
     """
     if isinstance(rng, np.random.Generator):
         return rng
@@ -22,22 +22,22 @@ def ensure_rng(rng: Optional[np.random.Generator | int] = None) -> np.random.Gen
 
 
 class RNGStream:
-    """Deterministic stream of independent child generators."""
+    """Flux déterministe de générateurs enfants indépendants."""
 
     def __init__(self, seed: Optional[int] = None):
         self.seed_sequence = np.random.SeedSequence(seed)
 
     def next(self) -> np.random.Generator:
-        """Return a fresh child generator."""
+        """Renvoie un nouveau générateur enfant indépendant."""
         return np.random.default_rng(self.seed_sequence.spawn(1)[0])
 
     def spawn(self, n: int) -> list[np.random.Generator]:
-        """Return ``n`` fresh child generators."""
+        """Renvoie ``n`` nouveaux générateurs enfants indépendants."""
         return [np.random.default_rng(s) for s in self.seed_sequence.spawn(n)]
 
 
 def log_product(values: Iterable[float]) -> float:
-    """Compute ``log(prod(values))`` and return ``-inf`` if a factor is zero."""
+    """Calcule ``log(prod(values))`` et renvoie ``-inf`` si l'un des facteurs est nul."""
     total = 0.0
     for value in values:
         if value <= 0:
@@ -47,7 +47,7 @@ def log_product(values: Iterable[float]) -> float:
 
 
 def binomial_standard_error(p: float, n: int) -> float:
-    """Standard error of a Bernoulli sample proportion."""
+    """Erreur type de la proportion d'un échantillon de Bernoulli."""
     if n <= 0:
         return math.nan
     p = float(np.clip(p, 0.0, 1.0))
@@ -55,15 +55,15 @@ def binomial_standard_error(p: float, n: int) -> float:
 
 
 def validate_finite_array(name: str, values: np.ndarray) -> None:
-    """Raise a clear error if an array contains NaN or infinity."""
+    """Lève une erreur explicite si un tableau contient des valeurs NaN ou infinies."""
     arr = np.asarray(values)
     if not np.all(np.isfinite(arr)):
-        raise ValueError(f"{name} must contain only finite values")
+        raise ValueError(f"{name} ne doit contenir que des valeurs finies")
 
 
 @dataclass
 class Timer:
-    """Lightweight wall-clock timer."""
+    """Chronomètre léger basé sur le temps réel écoulé (wall-clock)."""
 
     start: float = 0.0
     end: float = 0.0

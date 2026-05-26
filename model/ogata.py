@@ -1,9 +1,10 @@
-"""Continuation-capable path simulators for rare-event estimation.
+"""Simulateurs de trajectoires avec capacité de reprise pour l'estimation d'événements rares.
 
-Ogata thinning is used here only to simulate the underlying point-process path.
-The assignment-facing rare-event layer is Markovian Conditional Restart
-Splitting in ``model.restart_splitting``.  Legacy Fixed-Level Splitting and AMS
-experiments remain in ``model.splitting``.
+La méthode de thinning d'Ogata est utilisée ici uniquement pour simuler la trajectoire
+du processus ponctuel sous-jacent. La couche dédiée aux événements rares (au cœur du sujet)
+est la méthode MCRS (Markovian Conditional Restart Splitting), située dans 
+``model.restart_splitting``. Les expériences historiques basées sur le fractionnement à 
+niveaux fixes (Fixed-Level Splitting) et l'AMS restent dans ``model.splitting``.
 """
 
 from __future__ import annotations
@@ -351,7 +352,7 @@ class SingleHawkesSimulator:
         mu_minus: float = 1.5,
         alpha: float = 0.3,
         beta: float = 0.5,
-        sign_convention: str = "v4",
+        sign: str = "v4",
         max_events: int = 1_000_000,
         keep_checkpoints: bool = True,
     ):
@@ -359,9 +360,9 @@ class SingleHawkesSimulator:
         self.mu_minus = float(mu_minus)
         self.alpha = float(alpha)
         self.beta = float(beta)
-        self.sign_convention = sign_convention.lower()
-        if self.sign_convention not in {"v4", "inverse"}:
-            raise ValueError("sign_convention must be either 'v4' or 'inverse'")
+        self.sign = sign.lower()
+        if self.sign not in {"v4", "inverse"}:
+            raise ValueError("sign must be either 'v4' or 'inverse'")
         if self.beta <= 0:
             raise ValueError("beta must be positive")
         self.max_events = int(max_events)
@@ -369,11 +370,11 @@ class SingleHawkesSimulator:
 
     @property
     def add_jump(self) -> float:
-        return -self.alpha if self.sign_convention == "v4" else self.alpha
+        return -self.alpha if self.sign == "v4" else self.alpha
 
     @property
     def remove_jump(self) -> float:
-        return self.alpha if self.sign_convention == "v4" else -self.alpha
+        return self.alpha if self.sign == "v4" else -self.alpha
 
     def simulate(
         self,
@@ -560,7 +561,7 @@ class CoupledHawkesSimulator:
         mu_minus: float = 1.5,
         alpha: float = 0.3,
         beta: float = 0.5,
-        sign_convention: str = "v4",
+        sign: str = "v4",
         max_events: int = 1_000_000,
         keep_checkpoints: bool = True,
     ):
@@ -568,9 +569,9 @@ class CoupledHawkesSimulator:
         self.mu_minus = float(mu_minus)
         self.alpha = float(alpha)
         self.beta = float(beta)
-        self.sign_convention = sign_convention.lower()
-        if self.sign_convention not in {"v4", "inverse"}:
-            raise ValueError("sign_convention must be either 'v4' or 'inverse'")
+        self.sign = sign.lower()
+        if self.sign not in {"v4", "inverse"}:
+            raise ValueError("sign must be either 'v4' or 'inverse'")
         if self.beta <= 0:
             raise ValueError("beta must be positive")
         self.max_events = int(max_events)
@@ -616,7 +617,7 @@ class CoupledHawkesSimulator:
         return np.array([self.mu_plus, lm1, self.mu_plus, lmn1], dtype=float)
 
     def _apply_hawkes_jump(self, event: int, H: np.ndarray) -> None:
-        if self.sign_convention == "v4":
+        if self.sign == "v4":
             if event == 0:
                 H[0] -= self.alpha
                 H[1] -= self.alpha

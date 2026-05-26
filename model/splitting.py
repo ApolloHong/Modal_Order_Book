@@ -1,4 +1,4 @@
-"""Rare-event splitting estimators for LOB trajectory simulators."""
+"""Estimateurs de fractionnement pour événements rares destinés aux simulateurs de trajectoires de LOB (carnet d'ordres)."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from .utils import RNGStream, log_product
 
 @dataclass
 class SplittingResult:
-    """Result of a fixed-level splitting run."""
+    """Résultat d'une exécution de fractionnement à niveaux fixes (Fixed-Level Splitting)."""
 
     probability_estimate: float
     log_probability_estimate: float
@@ -29,7 +29,7 @@ class SplittingResult:
 
 @dataclass
 class AMSResult:
-    """Result of an Adaptive Multilevel Splitting run."""
+    """Résultat d'une exécution de fractionnement multiniveau adaptatif (Adaptive Multilevel Splitting)."""
 
     probability_estimate: float
     log_probability_estimate: float
@@ -43,11 +43,12 @@ class AMSResult:
 
 
 class FixedLevelSplitting:
-    """Fixed-level rare-event splitting estimator.
+    """Estimateur par fractionnement à niveaux fixes pour événements rares.
 
-    The simulator must expose ``simulate``, ``continue_from_checkpoint`` and
-    ``checkpoint_at_level``.  Checkpoints must include Hawkes excitation state
-    for Hawkes models; restarting from queue sizes alone is not valid.
+    Le simulateur doit exposer les méthodes ``simulate``, ``continue_from_checkpoint`` et
+    ``checkpoint_at_level``. Les points de contrôle (checkpoints) doivent inclure l'état
+    d'excitation de Hawkes pour les modèles de Hawkes ; redémarrer uniquement à partir de la
+    taille des files d'attente n'est pas valide.
     """
 
     def __init__(
@@ -61,12 +62,12 @@ class FixedLevelSplitting:
         store_trajectories: bool = True,
     ):
         if n_particles <= 0:
-            raise ValueError("n_particles must be positive")
+            raise ValueError("n_particles doit être positif")
         if not levels:
-            raise ValueError("levels must contain at least one level")
+            raise ValueError("levels doit contenir au moins un niveau")
         levels = [float(x) for x in levels]
         if any(b <= a for a, b in zip(levels, levels[1:])):
-            raise ValueError("levels must be strictly increasing")
+            raise ValueError("levels doit être strictement croissant")
         if levels[-1] < problem.threshold:
             levels = [*levels, float(problem.threshold)]
         self.simulator = simulator
@@ -83,7 +84,7 @@ class FixedLevelSplitting:
         warnings: list[str] = []
         if self.problem.metadata.get("non_monotone_score"):
             warnings.append(
-                "Problem score is marked non-monotone; splitting remains valid only if level crossings are meaningful."
+                "Le score du problème est marqué comme non monotone ; le fractionnement reste valide uniquement si les franchissements de niveau ont du sens."
             )
 
         current_checkpoints: list[Optional[Checkpoint]] = [None] * self.n_particles
@@ -115,7 +116,7 @@ class FixedLevelSplitting:
 
             if n_survivors == 0:
                 warnings.append(
-                    f"No survivor at level {level:.6g}; estimator is zero. Consider easier or more closely spaced levels."
+                    f"Aucun survivant au niveau {level:.6g} ; l'estimateur est nul. Envisagez des niveaux plus faciles ou plus rapprochés."
                 )
                 final_trajectories = trajectories if self.store_trajectories else []
                 break
@@ -132,7 +133,7 @@ class FixedLevelSplitting:
 
             if not survivor_checkpoints:
                 warnings.append(
-                    f"Survivors reached level {level:.6g}, but no continuation checkpoint was available."
+                    f"Des survivants ont atteint le niveau {level:.6g}, mais aucun point de contrôle de continuation n'était disponible."
                 )
                 final_trajectories = trajectories if self.store_trajectories else []
                 level_probabilities[-1] = 0.0
@@ -199,7 +200,7 @@ class FixedLevelSplitting:
 
 
 class AdaptiveMultilevelSplitting:
-    """Interacting-particle AMS estimator."""
+    """Estimateur AMS à particules en interaction."""
 
     def __init__(
         self,
@@ -214,9 +215,9 @@ class AdaptiveMultilevelSplitting:
         store_trajectories: bool = True,
     ):
         if n_particles <= 1:
-            raise ValueError("n_particles must be greater than one")
+            raise ValueError("n_particles doit être supérieur à un")
         if not (0 < kill_fraction < 1):
-            raise ValueError("kill_fraction must be in (0, 1)")
+            raise ValueError("kill_fraction doit être dans l'intervalle (0, 1)")
         self.simulator = simulator
         self.problem = problem
         self.n_particles = int(n_particles)
@@ -233,7 +234,7 @@ class AdaptiveMultilevelSplitting:
         warnings: list[str] = []
         if self.problem.metadata.get("non_monotone_score"):
             warnings.append(
-                "Problem score is marked non-monotone; AMS adaptive levels may be noisy."
+                "Le score du problème est marqué comme non monotone ; les niveaux adaptatifs de l'AMS peuvent être bruités."
             )
 
         particles = [
@@ -264,7 +265,7 @@ class AdaptiveMultilevelSplitting:
                 break
             if level <= previous_level and iteration > 0 and not stagnation_warned:
                 warnings.append(
-                    f"Adaptive level stagnated at {level:.6g}; estimator may have high variance."
+                    f"Le niveau adaptatif a stagné à {level:.6g} ; l'estimateur peut présenter une variance élevée."
                 )
                 stagnation_warned = True
             previous_level = level
@@ -272,7 +273,7 @@ class AdaptiveMultilevelSplitting:
             killed_set = set(int(i) for i in killed)
             survivors = [i for i in range(self.n_particles) if i not in killed_set and scores[i] >= level]
             if not survivors:
-                warnings.append("AMS degeneracy: no survivor available for cloning.")
+                warnings.append("Dégénérescence de l'AMS : aucun survivant disponible pour le clonage.")
                 break
 
             survival_factor = (self.n_particles - len(killed)) / self.n_particles
@@ -285,7 +286,7 @@ class AdaptiveMultilevelSplitting:
                 checkpoint = self.simulator.checkpoint_at_level(parent, level)
                 if checkpoint is None:
                     warnings.append(
-                        f"AMS could not find parent checkpoint at level {level:.6g}; stopped early."
+                        f"L'AMS n'a pas pu trouver de point de contrôle parent au niveau {level:.6g} ; arrêt prématuré."
                     )
                     final_hit_ratio = float(np.mean([traj.hit for traj in particles]))
                     return self._result(

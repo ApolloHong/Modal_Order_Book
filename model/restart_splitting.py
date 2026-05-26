@@ -1,9 +1,10 @@
-"""Markovian Conditional Restart Splitting for LOB rare events.
+"""Markovian Conditional Restart Splitting pour les événements rares de LOB (carnet d'ordres).
 
-This module implements the professor-requested restart method.  Ogata thinning
-remains the low-level path simulator; the method here only collects augmented
-Markov checkpoints ``(N, S)`` near a boundary and restarts local simulations
-from the empirical conditional law of those checkpoints.
+Ce module implémente la méthode de redémarrage demandée par la professeure. Le thinning
+d'Ogata reste le simulateur de trajectoires de bas niveau ; la méthode présentée ici
+se contente de collecter les points de contrôle markoviens augmentés ``(N, S)`` à proximité
+d'une frontière et de relancer des simulations locales à partir de la loi conditionnelle
+empirique de ces points de contrôle.
 """
 
 from __future__ import annotations

@@ -1,20 +1,20 @@
 """
-Event types for the Queue Reactive model.
+Types d'événements pour le modèle Queue Reactive.
 
-Events that can occur on each queue:
-    ADD     (A)  : A new limit order arrives → queue size +1
-    CANCEL  (C)  : An existing order is cancelled → queue size -1
-    TRADE   (T)  : A market order consumes one unit → queue size -1
-                   (only on first limits Q_{±1})
+Événements pouvant survenir sur chaque file d'attente :
+    ADD     (A)  : Un nouvel ordre limite arrive → taille de la file +1
+    CANCEL  (C)  : Un ordre existant est annulé → taille de la file -1
+    TRADE   (T)  : Un ordre au marché consomme une unité → taille de la file -1
+                   (uniquement sur les premières limites Q_{±1})
 
-Special events when a first limit is empty:
-    BID     (B)  : A buy order fills the empty ask-side limit
-                   → triggers price shift LEFT (price decreases)
-    ASK     (A)  : A sell order fills the empty bid-side limit
-                   → triggers price shift RIGHT (price increases)
+Événements spéciaux lorsqu'une première limite est vide :
+    BID     (B)  : Un ordre d'achat remplit la limite vide côté vendeur (ask)
+                   → déclenche un décalage de prix vers la GAUCHE (baisse du prix)
+    ASK     (A)  : Un ordre de vente remplit la limite vide côté acheteur (bid)
+                   → déclenche un décalage de prix vers la DROITE (hausse du prix)
 
-Extended event (for more complex models):
-    TOTAL_CONSUMPTION (TC) : A market order depletes the entire first limit
+Événement étendu (pour les modèles plus complexes) :
+    TOTAL_CONSUMPTION (TC) : Un ordre au marché épuise entièrement la première limite
 """
 
 from enum import Enum, auto
@@ -23,29 +23,29 @@ from typing import Optional
 
 
 class EventType(Enum):
-    ADD = auto()       # Limit order insertion: +1
-    CANCEL = auto()    # Order cancellation: -1
-    TRADE = auto()     # Market order (first limits only): -1
-    BID = auto()       # Fill empty limit from bid side → price shift
-    ASK = auto()       # Fill empty limit from ask side → price shift
-    TOTAL_CONSUMPTION = auto()  # Full depletion of first limit (extension)
+    ADD = auto()       # Insertion d'un ordre limite : +1
+    CANCEL = auto()    # Annulation d'un ordre : -1
+    TRADE = auto()     # Ordre au marché (premières limites uniquement) : -1
+    BID = auto()       # Remplissage d'une limite vide depuis le côté achat → décalage de prix
+    ASK = auto()       # Remplissage d'une limite vide depuis le côté vente → décalage de prix
+    TOTAL_CONSUMPTION = auto()  # Épuisement total de la première limite (extension)
 
 
 @dataclass
 class Event:
     """
-    A single event in the LOB simulation.
+    Un événement unique dans la simulation du carnet d'ordres (LOB).
     
-    Attributes
+    Attributs
     ----------
     time : float
-        Absolute time when the event occurs.
+        Temps absolu auquel l'événement se produit.
     event_type : EventType
-        Type of the event (ADD, CANCEL, TRADE, BID, ASK).
+        Type de l'événement (ADD, CANCEL, TRADE, BID, ASK).
     queue_index : int
-        Index of the queue affected (e.g., -1 for best bid, 1 for best ask).
+        Indice de la file d'attente affectée (par ex. -1 pour le meilleur achat, 1 pour la meilleure vente).
     size : float
-        Size change (usually +1 or -1; can be different for extensions).
+        Variation de la taille (généralement +1 ou -1 ; peut différer pour les extensions).
     """
     time: float
     event_type: EventType
@@ -54,7 +54,7 @@ class Event:
 
     @property
     def is_price_changing(self) -> bool:
-        """Does this event trigger a reference price change?"""
+        """Cet événement déclenche-t-il un changement du prix de référence ?"""
         return self.event_type in (EventType.BID, EventType.ASK)
 
     def __repr__(self):

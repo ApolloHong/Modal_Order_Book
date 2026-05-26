@@ -1,10 +1,10 @@
-"""Rare-event targets and score functions for LOB simulations.
+"""Cibles d'événements rares et fonctions de score pour les simulations de LOB (carnet d'ordres).
 
-Ogata thinning simulates sample paths.  The objects in this module define
-which event is rare and which progress score or boundary rule should guide
-rare-event estimators.
-Scores should be monotone, or at least progress-like, along paths.  When a
-score is only a proxy, diagnostics should be read with extra care.
+Le thinning d'Ogata simule les trajectoires. Les objets de ce module définissent
+quel événement est considéré comme rare et quel score de progression ou règle de frontière
+doit guider les estimateurs d'événements rares.
+Les scores doivent être monotones, ou du moins refléter une progression le long des trajectoires.
+Lorsqu'un score n'est qu'un indicateur approximatif (proxy), les diagnostics doivent être lus avec une attention particulière.
 """
 
 from __future__ import annotations
@@ -24,10 +24,10 @@ ObservableFunction = Callable[[State, float, PathMetadata], float]
 
 @dataclass
 class RareEventProblem:
-    """Definition of a finite-horizon rare-event probability problem.
+    """Définition d'un problème de probabilité d'événement rare à horizon fini.
 
-    The estimated quantity is typically ``P(tau_A <= T)``.  The simulator owns
-    the dynamics; this object owns the event, score, and initial condition.
+    La quantité estimée est généralement ``P(tau_A <= T)``. Le simulateur gère
+    la dynamique ; cet objet gère l'événement, le score et la condition initiale.
     """
 
     T: float
@@ -71,25 +71,25 @@ class RareEventProblem:
 
 
 def queue_position(metadata: PathMetadata, queue_index: int, default: Optional[int] = None) -> int:
-    """Return the vector position of a queue index."""
+    """Renvoie la position vectorielle d'un indice de file d'attente."""
     indices = metadata.get("queue_indices")
     if indices is None:
         if default is not None:
             return default
-        raise KeyError("metadata must contain queue_indices or a default position")
+        raise KeyError("metadata doit contenir 'queue_indices' ou une position par défaut")
     try:
         return list(indices).index(queue_index)
     except ValueError as exc:
-        raise KeyError(f"queue index {queue_index} is not present in queue_indices={indices}") from exc
+        raise KeyError(f"l'indice de file {queue_index} n'est pas présent dans queue_indices={indices}") from exc
 
 
 def queue_value(state: State, metadata: PathMetadata, queue_index: int, default: Optional[int] = None) -> float:
-    """Read a queue value from a state vector."""
+    """Lit la valeur d'une file d'attente à partir d'un vecteur d'état."""
     return float(np.asarray(state)[queue_position(metadata, queue_index, default)])
 
 
 def first_limit_imbalance(state: State, metadata: PathMetadata) -> float:
-    """Compute ``(Q_bid - Q_ask) / (Q_bid + Q_ask)``."""
+    """Calcule ``(Q_bid - Q_ask) / (Q_bid + Q_ask)``."""
     q_ask = queue_value(state, metadata, 1, 0)
     q_bid = queue_value(state, metadata, -1, 1 if len(state) > 1 else 0)
     total = q_bid + q_ask
@@ -97,7 +97,7 @@ def first_limit_imbalance(state: State, metadata: PathMetadata) -> float:
 
 
 def distance_to_depletion_score(state: State, time: float, metadata: PathMetadata) -> float:
-    """Progress score that increases as selected queue volume approaches zero."""
+    """Score de progression qui augmente à mesure que le volume de la file cible approche de zéro."""
     del time
     state = np.asarray(state, dtype=float)
     target_indices = metadata.get("target_indices")
@@ -116,7 +116,7 @@ def distance_to_depletion_score(state: State, time: float, metadata: PathMetadat
 
 
 def imbalance_score(state: State, time: float, metadata: PathMetadata) -> float:
-    """Progress score for a signed or absolute imbalance crossing."""
+    """Score de progression pour le franchissement d'un déséquilibre signé ou absolu."""
     del time
     imb = first_limit_imbalance(state, metadata)
     threshold = max(float(metadata.get("imbalance_threshold", 0.8)), 1e-12)
@@ -131,11 +131,10 @@ def imbalance_score(state: State, time: float, metadata: PathMetadata) -> float:
 
 
 def second_limit_score(state: State, time: float, metadata: PathMetadata) -> float:
-    """Proxy score for events involving first-limit depletion and second-limit size.
+    """Score d'approximation pour les événements combinant la déplétion de la première limite et la taille de la seconde.
 
-    The depletion part is monotone until the first limit hits zero.  The second
-    limit volume can move both ways, so this is a useful but not strictly
-    monotone score.
+    La partie déplétion est monotone jusqu'à ce que la première limite atteigne zéro. Le volume de la
+    seconde limite peut évoluer dans les deux sens, ce score est donc utile mais pas strictement monotone.
     """
     del time
     side = int(metadata.get("side", 1))
@@ -153,7 +152,7 @@ def second_limit_score(state: State, time: float, metadata: PathMetadata) -> flo
 
 
 def hawkes_excitation_score(state: State, time: float, metadata: PathMetadata) -> float:
-    """Progress score based on Hawkes intensity or excitation pressure."""
+    """Score de progression basé sur l'intensité de Hawkes ou la pression d'excitation."""
     del state, time
     intensity = metadata.get("intensity")
     if intensity is None:
@@ -176,7 +175,7 @@ def q1_depletion_problem(
     queue_index: int = 1,
     event_name: str = "q1_depletion",
 ) -> RareEventProblem:
-    """Create a one- or two-queue best-ask depletion problem."""
+    """Crée un problème de déplétion de la meilleure limite vendeuse (best-ask) à une ou deux files."""
     if q_neg1_init is None:
         initial_state = np.array([q1_init], dtype=float)
         queue_indices = [queue_index]
@@ -207,12 +206,12 @@ def q1_depletion_problem(
 
 
 def ask_best_depletion_problem(T: float, q1_init: int, q_neg1_init: int) -> RareEventProblem:
-    """Best ask ``Q+1`` hits zero before ``T``."""
+    """La meilleure limite vendeuse ``Q+1`` atteint zéro avant ``T``."""
     return q1_depletion_problem(T, q1_init, q_neg1_init, queue_index=1, event_name="ask_best_depletion")
 
 
 def bid_best_depletion_problem(T: float, q1_init: int, q_neg1_init: int) -> RareEventProblem:
-    """Best bid ``Q-1`` hits zero before ``T``."""
+    """La meilleure limite acheteuse ``Q-1`` atteint zéro avant ``T``."""
     initial_state = np.array([q1_init, q_neg1_init], dtype=float)
     metadata = {
         "queue_indices": [1, -1],
@@ -238,7 +237,7 @@ def bid_best_depletion_problem(T: float, q1_init: int, q_neg1_init: int) -> Rare
 
 
 def min_best_depletion_problem(T: float, q1_init: int, q_neg1_init: int) -> RareEventProblem:
-    """Either best queue, ``Q+1`` or ``Q-1``, hits zero before ``T``."""
+    """L'une ou l'autre des meilleures limites, ``Q+1`` ou ``Q-1``, atteint zéro avant ``T``."""
     initial_state = np.array([q1_init, q_neg1_init], dtype=float)
     metadata = {
         "queue_indices": [1, -1],
@@ -270,13 +269,13 @@ def first_limit_depletion_problem(
     q_neg2_init: int,
     side: Optional[int] = None,
 ) -> RareEventProblem:
-    """Four-queue problem where one first limit depletes before ``T``.
+    """Problème à quatre files où une première limite s'épuise avant ``T``.
 
-    ``side=None`` targets either ``Q+1`` or ``Q-1``.  ``side=1`` targets ask
-    depletion only, and ``side=-1`` targets bid depletion only.  The score is
-    still the normalized progress toward first-limit depletion, while ``Q+2``
-    and ``Q-2`` remain in the state so conditional second-limit observables can
-    be extracted from hit trajectories.
+    Si ``side=None``, vise indifféremment ``Q+1`` ou ``Q-1``. Si ``side=1``, vise uniquement la
+    déplétion à la vente (ask), et si ``side=-1``, vise uniquement la déplétion à l'achat (bid). Le score
+    reste la progression normalisée vers la déplétion de la première limite, tandis que ``Q+2``
+    et ``Q-2`` sont conservés dans l'état afin de pouvoir extraire les observables conditionnels
+    des deuxièmes limites à partir des trajectoires d'atteinte.
     """
     initial_state = np.array([q1_init, q_neg1_init, q2_init, q_neg2_init], dtype=float)
     if side is None:
@@ -318,7 +317,7 @@ def imbalance_crossing_problem(
     threshold: float = 0.8,
     side: str = "abs",
 ) -> RareEventProblem:
-    """First-limit imbalance crosses a threshold before ``T``."""
+    """Le déséquilibre (imbalance) de la première limite franchit un seuil avant ``T``."""
     initial_state = np.array([q1_init, q_neg1_init], dtype=float)
     metadata = {
         "queue_indices": [1, -1],
@@ -353,9 +352,9 @@ def second_limit_activation_problem(
     side: int = 1,
     q2_threshold: int = 8,
 ) -> RareEventProblem:
-    """First limit depletes and same-side second limit is active enough."""
+    """La première limite s'épuise et la deuxième limite du même côté est suffisamment active."""
     warnings.warn(
-        "second_limit_score is progress-like but not strictly monotone because the same-side second limit can both increase and decrease",
+        "second_limit_score est de type progression mais n'est pas strictement monotone car la deuxième limite du même côté peut à la fois augmenter et diminuer",
         RuntimeWarning,
         stacklevel=2,
     )
@@ -393,6 +392,6 @@ def q2_after_q1_depletion_problem(
     q_neg2_init: int,
     q2_threshold: int,
 ) -> RareEventProblem:
-    """Event ``Q+1`` depletes and ``Q+2`` is at least ``q2_threshold``."""
+    """Événement où ``Q+1`` se vide et ``Q+2`` est au moins égal à ``q2_threshold``."""
     initial_state = np.array([q1_init, q_neg1_init, q2_init, q_neg2_init], dtype=float)
     return second_limit_activation_problem(T, initial_state, side=1, q2_threshold=q2_threshold)

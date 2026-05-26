@@ -1,8 +1,8 @@
-"""Small plotting helpers used by the MODAL_ORDER_BOOK notebooks.
+"""Petits utilitaires graphiques utilisés par les notebooks MODAL_ORDER_BOOK.
 
-The helpers deliberately stay close to matplotlib/pandas so the notebooks
-remain easy to audit.  They do not change simulation results; they only make
-degenerate diagnostics explicit and keep figure formatting consistent.
+Ces utilitaires restent volontairement proches de matplotlib/pandas afin que les notebooks
+restent faciles à auditer. Ils ne modifient pas les résultats de simulation ; ils permettent
+seulement de rendre explicites les diagnostics dégénérés et de maintenir une mise en forme cohérente des figures.
 """
 
 from __future__ import annotations
@@ -25,20 +25,20 @@ def safe_barplot_metric(
     zero_policy: str = "annotate",
     ax: Optional[plt.Axes] = None,
 ) -> tuple[plt.Figure, plt.Axes]:
-    """Plot a metric bar chart, annotating degenerate all-zero values.
+    """Trace un diagramme en barres métrique, en annotant les valeurs dégénérées toutes nulles.
 
-    Parameters
+    Paramètres
     ----------
     df:
-        Source table.
+        Tableau source.
     x, y:
-        Column names for categories and metric values.
+        Noms des colonnes pour les catégories et les valeurs métriques.
     group:
-        Optional grouping column.  If supplied, category labels become
-        ``x`` followed by ``group`` on a new line.
+        Colonne de groupement optionnelle. Si elle est fournie, les étiquettes
+        de catégorie deviennent ``x`` suivi de ``group`` sur une nouvelle ligne.
     zero_policy:
-        ``"annotate"`` replaces all-zero bars with an explanatory message.
-        Any other value draws the zero bars normally.
+        ``"annotate"`` remplace les barres entièrement nulles par un message explicatif.
+        Toute autre valeur trace les barres nulles normalement.
     """
     if x not in df or y not in df:
         raise KeyError(f"safe_barplot_metric requires columns {x!r} and {y!r}")

@@ -1,4 +1,4 @@
-"""Limit order book simulations and rare-event estimators."""
+"""Simulations de carnets d'ordres limites (LOB) et estimateurs d'événements rares."""
 
 from model.lob import LOBState
 from model.events import Event, EventType

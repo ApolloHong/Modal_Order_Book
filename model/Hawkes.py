@@ -1,7 +1,7 @@
-"""Compatibility wrapper for the historical uppercase Hawkes module.
+"""Wrapper de compatibilité pour l'ancien module Hawkes en majuscules.
 
-New code should import from ``model.hawkes``.  This file is kept so existing
-notebooks using ``from model.Hawkes import ...`` continue to run unchanged.
+Le nouveau code devrait importer depuis ``model.hawkes``. Ce fichier est conservé
+pour que les notebooks existants utilisant ``from model.Hawkes import ...`` continuent de fonctionner sans modification.
 """
 
 from .hawkes import *  # noqa: F401,F403
