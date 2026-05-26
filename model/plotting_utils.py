@@ -1,5 +1,7 @@
 """Petits utilitaires graphiques utilisés par les notebooks MODAL_ORDER_BOOK.
 
+This project is conducted by Lizhan Hong and Tom Zhang under the supervision of Professor Charles-Albert Lehalle.
+
 Ces utilitaires restent volontairement proches de matplotlib/pandas afin que les notebooks
 restent faciles à auditer. Ils ne modifient pas les résultats de simulation ; ils permettent
 seulement de rendre explicites les diagnostics dégénérés et de maintenir une mise en forme cohérente des figures.

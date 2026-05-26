@@ -1,4 +1,7 @@
-"""Petits utilitaires pour des expériences reproductibles d'événements rares."""
+"""Petits utilitaires pour des expériences reproductibles d'événements rares.
+
+This project is conducted by Lizhan Hong and Tom Zhang under the supervision of Professor Charles-Albert Lehalle.
+"""
 
 from __future__ import annotations
 

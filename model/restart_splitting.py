@@ -1,5 +1,7 @@
 """Markovian Conditional Restart Splitting pour les événements rares de LOB (carnet d'ordres).
 
+This project is conducted by Lizhan Hong and Tom Zhang under the supervision of Professor Charles-Albert Lehalle.
+
 Ce module implémente la méthode de redémarrage demandée par la professeure. Le thinning
 d'Ogata reste le simulateur de trajectoires de bas niveau ; la méthode présentée ici
 se contente de collecter les points de contrôle markoviens augmentés ``(N, S)`` à proximité

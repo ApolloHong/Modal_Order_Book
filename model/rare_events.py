@@ -1,5 +1,7 @@
 """Cibles d'événements rares et fonctions de score pour les simulations de LOB (carnet d'ordres).
 
+This project is conducted by Lizhan Hong and Tom Zhang under the supervision of Professor Charles-Albert Lehalle.
+
 Le thinning d'Ogata simule les trajectoires. Les objets de ce module définissent
 quel événement est considéré comme rare et quel score de progression ou règle de frontière
 doit guider les estimateurs d'événements rares.

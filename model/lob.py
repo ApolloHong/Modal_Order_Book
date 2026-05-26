@@ -1,6 +1,8 @@
 """
 Représentation de l'état du carnet d'ordres limites (LOB - Limit Order Book).
 
+This project is conducted by Lizhan Hong and Tom Zhang under the supervision of Professor Charles-Albert Lehalle.
+
 Le carnet d'ordres est modélisé par 2I files d'attente : Q_{-I}, ..., Q_{-1}, Q_1, ..., Q_I
 où les indices négatifs correspondent au côté achat (bid) et les indices positifs au côté vente (ask).
 

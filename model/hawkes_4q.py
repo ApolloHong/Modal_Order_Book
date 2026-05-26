@@ -1,5 +1,6 @@
-"""
-Système LOB (Limit Order Book) à quatre files d'attente de type Hawkes (I=2).
+"""Système LOB (Limit Order Book) à quatre files d'attente de type Hawkes (I=2).
+
+This project is conducted by Lizhan Hong and Tom Zhang under the supervision of Professor Charles-Albert Lehalle.
 
 Implémente la section 1.2.4 (signes corrigés) et la section 1.2.5 du MODAL v4.
 

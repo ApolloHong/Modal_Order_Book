@@ -1,5 +1,7 @@
 """Simulateurs de trajectoires avec capacité de reprise pour l'estimation d'événements rares.
 
+This project is conducted by Lizhan Hong and Tom Zhang under the supervision of Professor Charles-Albert Lehalle.
+
 La méthode de thinning d'Ogata est utilisée ici uniquement pour simuler la trajectoire
 du processus ponctuel sous-jacent. La couche dédiée aux événements rares (au cœur du sujet)
 est la méthode MCRS (Markovian Conditional Restart Splitting), située dans 

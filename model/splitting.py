@@ -1,4 +1,7 @@
-"""Estimateurs de fractionnement pour événements rares destinés aux simulateurs de trajectoires de LOB (carnet d'ordres)."""
+"""Estimateurs de fractionnement pour événements rares destinés aux simulateurs de trajectoires de LOB (carnet d'ordres).
+
+This project is conducted by Lizhan Hong and Tom Zhang under the supervision of Professor Charles-Albert Lehalle.
+"""
 
 from __future__ import annotations
 

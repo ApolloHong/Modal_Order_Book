@@ -1,5 +1,8 @@
 # Markovian Conditional Restart Splitting
 
+This project is conducted by **Lizhan Hong** and **Tom Zhang** under the
+supervision of Professor **Charles-Albert Lehalle**.
+
 **Markovian Conditional Restart Splitting** is the rare-event method used in the
 final MODAL order-book notebooks. It is an outer simulation layer around the
 existing Ogata thinning path simulator.
@@ -56,7 +59,7 @@ S_k = (
     S_k^{+1,-},
     S_k^{-1,-},
     S_k^{+1,- -> +2,+},
-    S_k^{-1,- -> -2,-}
+    S_k^{-1,- -> -2,+}
 )
 ```
 

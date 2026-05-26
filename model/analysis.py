@@ -1,5 +1,6 @@
-"""
-Utilitaires d'analyse pour les simulations de modèles QR (Queue Resilience).
+"""Utilitaires d'analyse pour les simulations de modèles QR (Queue Resilience).
+
+This project is conducted by Lizhan Hong and Tom Zhang under the supervision of Professor Charles-Albert Lehalle.
 
 Calcule des métriques clés à partir des résultats de simulation :
     - Ratio de retour à la moyenne η = N_c / (2 N_a)

@@ -1,3 +1,8 @@
+"""Validation tests for the MODAL_ORDER_BOOK project.
+
+This project is conducted by Lizhan Hong and Tom Zhang under the supervision of Professor Charles-Albert Lehalle.
+"""
+
 import sys
 from pathlib import Path
 

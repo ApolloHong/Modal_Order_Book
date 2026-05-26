@@ -1,5 +1,11 @@
-"""Simulations de carnets d'ordres limites (LOB) et estimateurs d'événements rares."""
+"""Simulations de carnets d'ordres limites (LOB) et estimateurs d'événements rares.
 
+This project is conducted by Lizhan Hong and Tom Zhang under the supervision of Professor Charles-Albert Lehalle.
+"""
+
+import sys as _sys
+
+from model import Hawkes as hawkes
 from model.lob import LOBState
 from model.events import Event, EventType
 from model.ogata import (
@@ -76,6 +82,8 @@ from model.hitting_times import (
     batch_hitting_times,
     scan_initial_conditions,
 )
+
+_sys.modules.setdefault(__name__ + ".hawkes", hawkes)
 
 __all__ = [
     "LOBState",

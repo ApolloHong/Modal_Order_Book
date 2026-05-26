@@ -1,6 +1,8 @@
 """
 Types d'événements pour le modèle Queue Reactive.
 
+This project is conducted by Lizhan Hong and Tom Zhang under the supervision of Professor Charles-Albert Lehalle.
+
 Événements pouvant survenir sur chaque file d'attente :
     ADD     (A)  : Un nouvel ordre limite arrive → taille de la file +1
     CANCEL  (C)  : Un ordre existant est annulé → taille de la file -1

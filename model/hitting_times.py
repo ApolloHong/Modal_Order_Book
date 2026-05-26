@@ -1,5 +1,6 @@
-"""
-Analyse des temps d'atteinte pour deux files birth-death indépendantes.
+"""Analyse des temps d'atteinte pour deux files birth-death indépendantes.
+
+This project is conducted by Lizhan Hong and Tom Zhang under the supervision of Professor Charles-Albert Lehalle.
 
 Ce module regroupe les outils utilisés dans la question 1.2.3 du projet MODAL :
     - simulation de deux files indépendantes jusqu'à ce que l'une atteigne 0 ;
