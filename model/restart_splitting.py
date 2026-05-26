@@ -28,7 +28,7 @@ ObservableFunction = Callable[[np.ndarray, float, dict[str, Any]], dict[str, Any
 
 @dataclass
 class MarkovState:
-    """Augmented Markov state ``X=(N,S)`` used for restart splitting."""
+    """État augmenté de Markov ``X=(N,S)`` utilisé pour le restart splitting."""
 
     t: float
     queues: np.ndarray
@@ -50,7 +50,7 @@ class MarkovState:
 
 @dataclass
 class BoundaryCheckpoint:
-    """A full Markov checkpoint observed at a near-boundary queue level."""
+    """Un point de contrôle (checkpoint) de Markov complet observé à un niveau de file proche de la frontière."""
 
     state: MarkovState
     boundary_name: str
@@ -72,7 +72,7 @@ class BoundaryCheckpoint:
 
 @dataclass
 class BoundarySample:
-    """Empirical boundary sample approximating ``Law(S | boundary)``."""
+    """Échantillon empirique à la frontière approximant la loi ``Law(S | boundary)``."""
 
     checkpoints: list[BoundaryCheckpoint]
     S_samples: np.ndarray
@@ -83,7 +83,7 @@ class BoundarySample:
 
 @dataclass
 class RestartSplittingResult:
-    """Result of Markovian Conditional Restart Splitting."""
+    """Résultat du restart splitting markovien conditionnel (MCRS)."""
 
     method_name: str
     probability_estimate: float
@@ -98,7 +98,7 @@ class RestartSplittingResult:
 
 @dataclass
 class MultilevelRestartSplittingResult:
-    """Result of multilevel Markovian Conditional Restart Splitting."""
+    """Résultat du restart splitting markovien conditionnel multiniveau."""
 
     method_name: str
     probability_estimate: float
@@ -112,13 +112,12 @@ class MultilevelRestartSplittingResult:
 
 
 def default_hawkes_burn_in(simulator: Any, multiplier: float = 10.0) -> float:
-    """Return a conservative Hawkes burn-in horizon for exponential kernels.
+    """Renvoie un horizon de burn-in conservateur pour les noyaux de Hawkes exponentiels.
 
-    The default is ``multiplier / (beta * (1 - alpha / beta))``.  For the
-    four-queue parameters used in nb3, ``alpha=0.3`` and ``beta=0.5`` gives
-    ``50``.  Pure Poisson simulators return ``0``.
+    La valeur par défaut est ``multiplier / (beta * (1 - alpha / beta))``. Pour les
+    paramètres à quatre files utilisés dans le nb3, ``alpha=0.3`` et ``beta=0.5`` donnent
+    ``50``. Les simulateurs de Poisson purs renvoient ``0``.
     """
-
     params = getattr(simulator, "params", simulator)
     alpha = getattr(params, "alpha", None)
     beta = getattr(params, "beta", None)
@@ -127,16 +126,15 @@ def default_hawkes_burn_in(simulator: Any, multiplier: float = 10.0) -> float:
     alpha = float(alpha)
     beta = float(beta)
     if beta <= 0:
-        raise ValueError("beta must be positive to compute Hawkes burn-in")
+        raise ValueError("beta doit être positif pour calculer le burn-in de Hawkes")
     ratio_gap = 1.0 - alpha / beta
     if ratio_gap <= 0:
-        raise ValueError("default Hawkes burn-in requires alpha / beta < 1")
+        raise ValueError("le burn-in par défaut de Hawkes requiert alpha / beta < 1")
     return float(multiplier / (beta * ratio_gap))
 
 
 def queue_boundary_fn(queue_index: int, boundary_level: int = 1) -> QueueCondition:
-    """Return a condition for the first time ``Q_queue_index <= boundary_level``."""
-
+    """Renvoie une condition pour le premier instant où ``Q_queue_index <= boundary_level``."""
     queue_index = int(queue_index)
     boundary_level = int(boundary_level)
 
@@ -148,8 +146,7 @@ def queue_boundary_fn(queue_index: int, boundary_level: int = 1) -> QueueConditi
 
 
 def local_depletion_target_fn(queue_index: int) -> QueueCondition:
-    """Return a local target condition ``Q_queue_index <= 0``."""
-
+    """Renvoie une condition cible locale ``Q_queue_index <= 0``."""
     queue_index = int(queue_index)
 
     def condition(state: np.ndarray, time: float, metadata: dict[str, Any]) -> bool:
@@ -160,8 +157,7 @@ def local_depletion_target_fn(queue_index: int) -> QueueCondition:
 
 
 def local_recovery_fn(queue_index: int, recovery_level: int = 2) -> QueueCondition:
-    """Return a local recovery condition ``Q_queue_index >= recovery_level``."""
-
+    """Renvoie une condition de restauration (recovery) locale ``Q_queue_index >= recovery_level``."""
     queue_index = int(queue_index)
     recovery_level = int(recovery_level)
 
@@ -177,8 +173,7 @@ def checkpoint_to_markov_state(
     simulator: Any = None,
     model_name: Optional[str] = None,
 ) -> MarkovState:
-    """Convert an Ogata checkpoint into the augmented Markov state ``(N,S)``."""
-
+    """Convertit un point de contrôle d'Ogata en un état de Markov augmenté ``(N,S)``."""
     cp = checkpoint.copy()
     excitation, component_names, diagnostics = extract_excitation_vector(cp, simulator=simulator, model_name=model_name)
     metadata = dict(cp.metadata)
@@ -196,8 +191,7 @@ def checkpoint_to_markov_state(
 
 
 def markov_state_to_checkpoint(markov_state: MarkovState) -> Checkpoint:
-    """Convert a copied Markov state back into a simulator continuation checkpoint."""
-
+    """Convertit une copie d'un état de Markov en un point de contrôle pour la continuation du simulateur."""
     state = markov_state.copy()
     return Checkpoint(
         time=float(state.t),
@@ -214,13 +208,12 @@ def extract_excitation_vector(
     simulator: Any = None,
     model_name: Optional[str] = None,
 ) -> tuple[np.ndarray, list[str], dict[str, Any]]:
-    """Extract the Hawkes excitation vector ``S`` from a checkpoint.
+    """Extrait le vecteur d'excitation de Hawkes ``S`` à partir d'un point de contrôle.
 
-    The checkpoint's ``hawkes_state`` is authoritative.  Reconstructing from
-    intensity is only used as a diagnostic fallback because the simulators clip
-    some intensities at zero or at ``0.01``.
+    Le champ ``hawkes_state`` du point de contrôle fait foi. La reconstruction à partir de
+    l'intensité n'est utilisée qu'en dernier recours pour le diagnostic, car les simulateurs
+    tronquent certaines intensités à zéro ou à ``0.01``.
     """
-
     state = np.asarray(checkpoint.state, dtype=float)
     hawkes_state = checkpoint.hawkes_state or {}
     model = _infer_model_name(checkpoint, simulator, model_name)
@@ -240,11 +233,11 @@ def extract_excitation_vector(
             "S^{+1,- -> +2,+}",
             "S^{-1,- -> -2,+}",
         ]
-        diagnostics["sign_convention"] = "positive index = ask, negative index = bid"
+        diagnostics["sign_convention"] = "indice positif = ask, indice négatif = bid"
         diagnostics["queue_state_order"] = [1, -1, 2, -2]
         diagnostics["cross_component_note"] = (
-            "G[0] is the ask-side cross excitation Q+1 removal -> Q+2 addition; "
-            "G[1] is the bid-side cross excitation exported as S^{-1,- -> -2,+}."
+            "G[0] est l'excitation croisée côté ask (retrait Q+1 -> ajout Q+2) ; "
+            "G[1] est l'excitation croisée côté bid exportée comme S^{-1,- -> -2,+}."
         )
         return excitation, component_names, diagnostics
 
@@ -263,7 +256,7 @@ def extract_excitation_vector(
         excitation, component_names = fallback
         diagnostics["S_reconstruction"] = "intensity_minus_baseline"
         diagnostics["S_reconstruction_warning"] = (
-            "Excitation was reconstructed from intensity and may be lossy under clipping."
+            "L'excitation a été reconstruite à partir de l'intensité et peut être altérée par le troncage."
         )
         return excitation, component_names, diagnostics
 
@@ -287,22 +280,21 @@ def collect_boundary_states(
     queue_indices: Optional[Sequence[int]] = None,
     metadata: Optional[dict[str, Any]] = None,
 ) -> BoundarySample:
-    """Collect empirical Markov checkpoints at a near-boundary queue level.
+    """Collecte les points de contrôle markoviens empiriques à un niveau de file proche de la frontière.
 
-    If ``burn_in`` is ``None``, Hawkes simulators use
-    ``10 / (beta * (1 - alpha / beta))`` before the boundary clock starts.
-    Pass ``burn_in=0.0`` explicitly to disable this.
+    Si ``burn_in`` est ``None``, les simulateurs de Hawkes appliquent une période de
+    ``10 / (beta * (1 - alpha / beta))`` avant le déclenchement de l'horloge de frontière.
+    Passez explicitement ``burn_in=0.0`` pour désactiver ce comportement.
     """
-
     if n_paths <= 0:
-        raise ValueError("n_paths must be positive")
+        raise ValueError("n_paths doit être positif")
     if horizon <= 0:
-        raise ValueError("horizon must be positive")
+        raise ValueError("horizon doit être positif")
     if not first_hit_only:
-        raise NotImplementedError("collect_boundary_states currently records the first boundary hit only")
+        raise NotImplementedError("collect_boundary_states n'enregistre actuellement que la première atteinte de frontière")
     if boundary_fn is None:
         if queue_index is None:
-            raise ValueError("Either boundary_fn or queue_index must be provided")
+            raise ValueError("boundary_fn ou queue_index doit être fourni")
         boundary_fn = queue_boundary_fn(queue_index, boundary_level)
 
     initial = _infer_initial_state(simulator, initial_state)
@@ -428,16 +420,14 @@ def restart_from_boundary_distribution(
     post_success_horizon: float = 0.0,
     method_name: str = METHOD_NAME,
 ) -> RestartSplittingResult:
-    """Restart local simulations from empirical boundary Markov states.
+    """Redémarre des simulations locales à partir des états de Markov empiriques à la frontière.
 
-    ``post_success_horizon`` is optional and keeps the original estimator
-    unchanged when set to zero.  When positive, successful local depletion paths
-    are continued for an additional window before recording post-hit second-limit
-    observables.  This is useful when the Hawkes cross-excitation jump occurs at
-    the depletion event itself and needs time to materialize as second-limit
-    queue additions.
+    Le paramètre ``post_success_horizon`` est optionnel et laisse l'estimateur d'origine intact
+    lorsqu'il est égal à zéro. S'il est positif, les trajectoires locales d'épuisement réussies
+    s'exécutent sur une fenêtre additionnelle avant d'enregistrer les observables de seconde limite post-atteinte.
+    Ceci est utile lorsque le saut d'excitation croisée de Hawkes se produit au moment même de l'événement
+    d'épuisement et nécessite du temps pour se matérialiser sous forme d'ajouts dans la seconde file.
     """
-
     if isinstance(checkpoints, BoundarySample):
         checkpoint_list = checkpoints.checkpoints
         sample_metadata = dict(checkpoints.metadata)
@@ -445,15 +435,15 @@ def restart_from_boundary_distribution(
         checkpoint_list = list(checkpoints)
         sample_metadata = {}
     if not checkpoint_list:
-        raise ValueError("At least one boundary checkpoint is required")
+        raise ValueError("Au moins un point de contrôle frontière est requis")
     if n_restarts <= 0:
-        raise ValueError("n_restarts must be positive")
+        raise ValueError("n_restarts doit être positif")
     if horizon_local <= 0:
-        raise ValueError("horizon_local must be positive")
+        raise ValueError("horizon_local doit être positif")
     if post_success_horizon < 0:
-        raise ValueError("post_success_horizon must be nonnegative")
+        raise ValueError("post_success_horizon doit être non négatif")
     if not sample_with_replacement and n_restarts > len(checkpoint_list):
-        raise ValueError("n_restarts cannot exceed checkpoint count without replacement")
+        raise ValueError("n_restarts ne peut pas dépasser le nombre de points de contrôle sans remise")
 
     rng_main = ensure_rng(rng)
     stream = _make_rng_stream(rng_main)
