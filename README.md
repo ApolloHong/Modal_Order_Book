@@ -70,31 +70,6 @@ state. The method:
 
 Ogata thinning remains the low-level path simulator.
 
-### Legacy Splitting Utilities
-
-`model/splitting.py` still contains Fixed-Level Splitting and AMS utilities from
-earlier experiments. They remain import-compatible, but they are not the main
-method used in the final assignment.
-
-Fixed-Level Splitting uses manually chosen score levels, for example:
-
-```python
-levels = [0.20, 0.40, 0.60, 0.80, 1.00]
-```
-
-At each level, paths that reached the level survive; paths that did not are
-discarded. Survivors are resampled from their first level-hitting checkpoints
-and then continued independently. The probability estimate is the product of
-conditional survival probabilities across levels.
-
-AMS chooses levels automatically. It simulates a population of particles,
-repeatedly kills the worst-scoring fraction, clones from better particles at
-the adaptive level, and continues the clones with independent random streams.
-
-A single AMS run returns a probability estimate but not a reliable standard
-error. For publication-quality error bars, run several independent AMS
-macro-replications and compute the empirical standard deviation.
-
 ### Checkpointing and Hawkes Memory
 
 Checkpointing is essential. A Hawkes process cannot be restarted from queue
